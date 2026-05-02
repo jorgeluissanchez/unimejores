@@ -1,10 +1,10 @@
 import { Button } from "@/core/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
@@ -63,7 +63,7 @@ export default function LoginScreen() {
 
   return (
     <View testID="login-screen" className="flex-1 justify-center p-5">
-      <Card>
+      <Card className="max-w-xl mx-auto w-full">
         <CardHeader>
           <CardTitle className="text-center" variant="h1">¡Bienvenido! Inicia sesión</CardTitle>
           <CardDescription className="text-center">Bienvenido de nuevo</CardDescription>

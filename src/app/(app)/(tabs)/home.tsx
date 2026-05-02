@@ -1,2 +1,2 @@
-export { default } from '@/features/products/presentation/screens/product-screen';
+export { default } from '@/features/courses/presentation/screens/courses-screen';
 

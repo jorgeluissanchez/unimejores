@@ -1,14 +1,16 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
+import { isSessionExpiredError } from "@/core/lib/utils";
+import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { NewProduct, Product } from "@/features/products/domain/entities/product";
 import { ProductRepository } from "@/features/products/domain/repositories/product-repository";
 import React, {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
 } from "react";
 
 export type ProductContextType = {
@@ -27,6 +29,7 @@ export const ProductContext = createContext<ProductContextType | undefined>(unde
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const di = useDI();
+  const { expireSession } = useAuth();
 
   // ✅ Directly resolve the repository, no use cases
   const productRepo = useMemo(() => di.resolve<ProductRepository>(TOKENS.ProductRepo), [di]);
@@ -48,6 +51,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const list = await productRepo.getProducts();
       setProducts(list);
     } catch (e) {
+      if (isSessionExpiredError(e)) {
+        await expireSession();
+        setProducts([]);
+        return;
+      }
       setError((e as Error).message);
     } finally {
       setIsLoading(false);
@@ -61,6 +69,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await productRepo.addProduct(product);
       await refreshProducts();
     } catch (e) {
+      if (isSessionExpiredError(e)) {
+        await expireSession();
+        return;
+      }
       setError((e as Error).message);
     } finally {
       setIsLoading(false);
@@ -74,6 +86,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await productRepo.updateProduct(product);
       await refreshProducts();
     } catch (e) {
+      if (isSessionExpiredError(e)) {
+        await expireSession();
+        return;
+      }
       setError((e as Error).message);
     } finally {
       setIsLoading(false);
@@ -87,6 +103,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await productRepo.deleteProduct(id);
       await refreshProducts();
     } catch (e) {
+      if (isSessionExpiredError(e)) {
+        await expireSession();
+        return;
+      }
       setError((e as Error).message);
     } finally {
       setIsLoading(false);
@@ -100,6 +120,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setError(null);
       return await productRepo.getProductById(id);
     } catch (e) {
+      if (isSessionExpiredError(e)) {
+        await expireSession();
+        return undefined;
+      }
       setError((e as Error).message);
       return undefined;
     } finally {

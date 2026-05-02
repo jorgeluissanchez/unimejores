@@ -1,5 +1,6 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
+import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthUser } from "@/features/auth/domain/entities/auth-user";
 import { AuthRepository } from "@/features/auth/domain/repositories/auth-repository";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
@@ -13,6 +14,7 @@ export type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  expireSession: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   validate: (email: string, validationCode: string) => Promise<string | null>;
   getLoggedUser: () => Promise<any | null>;
@@ -24,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const di = useDI();
 
   const authRepo = useMemo(() => di.resolve<AuthRepository>(TOKENS.AuthRepo), [di]);
+  const prefs = useMemo(() => LocalPreferencesAsyncStorage.getInstance(), []);
 
   const [loggedUser, setLoggedUser] = useState<AuthUser | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -31,6 +34,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const clearError = () => setError(null);
+
+  const clearLocalSession = async () => {
+    await Promise.all([
+      prefs.removeData("token"),
+      prefs.removeData("refreshToken"),
+      prefs.removeData("userId"),
+      prefs.removeData("email"),
+    ]);
+    setLoggedUser(null);
+    setIsLoggedIn(false);
+  };
 
   useEffect(() => {
     authRepo.getCurrentUser()
@@ -47,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       await authRepo.login(email, password);
+      const user = await authRepo.getCurrentUser();
+      setLoggedUser(user);
       setIsLoggedIn(true);
     } catch (err: any) {
       setError(err?.message ?? "Error al iniciar sesión");
@@ -74,12 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       await authRepo.logout();
-      setIsLoggedIn(false);
     } catch (err: any) {
       setError(err?.message ?? "Error al cerrar sesión");
     } finally {
+      await clearLocalSession();
       setLoading(false);
     }
+  };
+
+  const expireSession = async () => {
+    clearError();
+    await clearLocalSession();
+    setLoading(false);
   };
 
   const forgotPassword = async (email: string) => {
@@ -113,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ loggedUser, isLoggedIn, loading, error, clearError, login, signup, logout, forgotPassword, validate, getLoggedUser }}>
+    <AuthContext.Provider value={{ loggedUser, isLoggedIn, loading, error, clearError, login, signup, logout, expireSession, forgotPassword, validate, getLoggedUser }}>
       {children}
     </AuthContext.Provider>
   );

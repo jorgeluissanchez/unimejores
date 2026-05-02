@@ -20,7 +20,7 @@ export class ProductRemoteDataSourceImpl implements ProductDataSource {
     }
     this.prefs = LocalPreferencesAsyncStorage.getInstance();
     this.projectId = projectId;
-    this.baseUrl = `https://roble-api.openlab.uninorte.edu.co/database/${this.projectId}`;
+    this.baseUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co"}/database/${this.projectId}`;
   }
 
   private async authorizedFetch(

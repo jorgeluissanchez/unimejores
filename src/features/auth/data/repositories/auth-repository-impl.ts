@@ -1,12 +1,16 @@
+import { ILocalPreferences } from "@/core/storage/i-local-preferences";
+import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthRemoteDataSource } from "@/features/auth/data/datasources/auth-remote-data-source";
 import { AuthUser } from "@/features/auth/domain/entities/auth-user";
 import { AuthRepository } from "@/features/auth/domain/repositories/auth-repository";
 
 export class AuthRepositoryImpl implements AuthRepository {
   private dataSource: AuthRemoteDataSource;
+  private prefs: ILocalPreferences;
 
   constructor(dataSource: AuthRemoteDataSource) {
     this.dataSource = dataSource;
+    this.prefs = LocalPreferencesAsyncStorage.getInstance();
   }
 
   async login(email: string, password: string): Promise<void> {
@@ -22,8 +26,14 @@ export class AuthRepositoryImpl implements AuthRepository {
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    // return this.dataSource.getCurrentUser();
-    return null;
+    try {
+      const userId = await this.prefs.retrieveData<string>("userId");
+      const email = await this.prefs.retrieveData<string>("email");
+      if (!userId || !email) return null;
+      return { userId, email };
+    } catch {
+      return null;
+    }
   }
 
   async forgotPassword(email: string): Promise<void> {

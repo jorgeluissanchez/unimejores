@@ -1,10 +1,10 @@
 import { Button } from "@/core/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
@@ -64,7 +64,7 @@ export default function SignupScreen() {
 
   return (
     <View testID="signup-screen" className="flex-1 justify-center p-5">
-      <Card>
+      <Card className="max-w-xl mx-auto w-full">
         <CardHeader>
           <CardTitle className="text-center" variant="h1">Crea una cuenta</CardTitle>
           <CardDescription className="text-center">Únete y empieza a usar la app</CardDescription>
@@ -103,23 +103,23 @@ export default function SignupScreen() {
           <View className="gap-1.5">
             <Label>Contraseña</Label>
             <View className="flex-row items-center gap-2">
-            <Input
-              testID="signup-password-input"
-              value={password}
-              onChangeText={(v: string) => {
-                setPassword(v);
-                if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-                if (error) clearError();
-              }}
-              placeholder="**********"
-              secureTextEntry={obscurePassword}
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-              className={errors.password ? "border-destructive" : undefined}
-            />
-            <Button variant="ghost" className="w-fit" size="sm" onPress={() => setObscurePassword((v) => !v)}>
-              <Text className="text-sm">{obscurePassword ? "Mostrar contraseña" : "Ocultar contraseña"}</Text>
-            </Button>
+              <Input
+                testID="signup-password-input"
+                value={password}
+                onChangeText={(v: string) => {
+                  setPassword(v);
+                  if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+                  if (error) clearError();
+                }}
+                placeholder="**********"
+                secureTextEntry={obscurePassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                className={errors.password ? "border-destructive" : undefined}
+              />
+              <Button variant="ghost" className="w-fit" size="sm" onPress={() => setObscurePassword((v) => !v)}>
+                <Text className="text-sm">{obscurePassword ? "Mostrar contraseña" : "Ocultar contraseña"}</Text>
+              </Button>
             </View>
             {!!errors.password && (
               <Text testID="signup-password-error" className="text-sm text-destructive">

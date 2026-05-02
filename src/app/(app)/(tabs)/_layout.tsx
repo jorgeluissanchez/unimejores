@@ -18,6 +18,11 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: theme.colors.card,
           borderTopColor: 'transparent',
+          height: 60,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginTop: -5,
         },
       }}
     >

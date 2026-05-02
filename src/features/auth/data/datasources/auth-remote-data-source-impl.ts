@@ -2,6 +2,21 @@ import { ILocalPreferences } from "@/core/storage/i-local-preferences";
 import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthRemoteDataSource } from "./auth-remote-data-source";
 
+function decodeJwtPayload(token: string): Record<string, any> {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+}
+
 export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   private readonly projectId: string;
   private readonly baseUrl: string;
@@ -13,7 +28,7 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw new Error("Falta la variable de entorno EXPO_PUBLIC_ROBLE_PROJECT_ID");
     }
     this.projectId = projectId;
-    this.baseUrl = `https://roble-api.openlab.uninorte.edu.co/auth/${this.projectId}`;
+    this.baseUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co"}/auth/${this.projectId}`;
     this.prefs = LocalPreferencesAsyncStorage.getInstance();
   }
 
@@ -29,8 +44,12 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         const data = await response.json();
         const token = data["accessToken"];
         const refreshToken = data["refreshToken"];
+        const payload = decodeJwtPayload(token);
+        const userId = payload["sub"] ?? null;
         await this.prefs.storeData("token", token);
         await this.prefs.storeData("refreshToken", refreshToken);
+        await this.prefs.storeData("userId", userId);
+        await this.prefs.storeData("email", email);
         return Promise.resolve();
       } else {
         const body = await response.json();
@@ -81,6 +100,8 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (response.ok) {
         await this.prefs.removeData("token");
         await this.prefs.removeData("refreshToken");
+        await this.prefs.removeData("userId");
+        await this.prefs.removeData("email");
         console.log("Sesión cerrada correctamente");
         return Promise.resolve();
       } else {

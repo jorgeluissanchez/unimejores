@@ -1,10 +1,10 @@
 import { Button } from "@/core/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/core/components/ui/card";
 import { OTPInput } from "@/core/components/ui/opt-input";
 import { Text } from "@/core/components/ui/text";
@@ -96,7 +96,7 @@ export default function VerifyEmailScreen() {
 
   return (
     <View className="flex-1 justify-center p-5">
-      <Card>
+      <Card className="max-w-xl mx-auto w-full">
         <CardHeader>
           <CardTitle className="text-center">Verifica tu correo</CardTitle>
           <CardDescription className="text-center">
