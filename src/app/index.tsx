@@ -1,16 +1,14 @@
-import { Redirect, RelativePathString } from 'expo-router';
-import React from 'react';
-
-import { useAuth } from '@/features/auth/presentation/context/auth-context';
+import { useAuth } from "@/features/auth/presentation/context/auth-context";
+import { Redirect } from "expo-router";
 
 export default function Index() {
   const { isLoggedIn, loading } = useAuth();
 
-  if (loading) {
-    return null;
+  if (loading) return null;
+
+  if (isLoggedIn) {
+    return <Redirect href="/home" />;
   }
 
-  const href = (isLoggedIn ? '/home' : '/login') as RelativePathString;
-
-  return <Redirect href={href} />;
+  return <Redirect href="/welcome" />;
 }

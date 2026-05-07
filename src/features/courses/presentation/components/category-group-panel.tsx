@@ -70,13 +70,7 @@ export function CategoryGroupPanel({ categoryState, courseId }: Props) {
   const otherMembers = members.filter((m) => m.user_id !== loggedUser?.userId);
 
   return (
-    <View className="flex-1 p-4">
-      <Text className="mb-1 text-base font-semibold text-foreground">
-        Grupo: {group.name}
-      </Text>
-      <Text className="mb-4 text-sm text-muted-foreground">
-        {otherMembers.length} compañero{otherMembers.length !== 1 ? "s" : ""} por evaluar
-      </Text>
+    <View >
 
       {peers.length === 0 ? (
         <View className="flex-1 items-center justify-center">
@@ -84,37 +78,58 @@ export function CategoryGroupPanel({ categoryState, courseId }: Props) {
         </View>
       ) : (
         <FlatList
+          style={{
+            marginTop: 8,
+          }}
           data={peers}
           keyExtractor={(item) => item.user.user_id}
-          contentContainerStyle={{ gap: 10 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: 40,
+          }}
+          ItemSeparatorComponent={() => (
+            <View className="h-px bg-zinc-200 ml-[72px]" />
+          )}
           renderItem={({ item }) => {
             const { user, evaluated } = item;
+
             return (
               <Pressable
-                onPress={() => handlePeerPress(user, evaluated)}
+                onPress={() =>
+                  handlePeerPress(user, evaluated)
+                }
                 disabled={evaluated}
-                className={`rounded-xl border p-4 ${
-                  evaluated
-                    ? "border-border bg-muted opacity-60"
-                    : "border-primary/30 bg-card active:opacity-70"
-                }`}
+                className="py-4 active:opacity-70"
               >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text className="font-medium">{user.name}</Text>
-                    <Text className="text-sm text-muted-foreground">{user.email}</Text>
-                  </View>
+                <View className="flex-row items-center">
+
+                  {/* Left Button */}
                   <View
-                    className={`rounded-full px-3 py-1 ${
-                      evaluated ? "bg-muted-foreground/20" : "bg-primary/10"
-                    }`}
+                    className={`w-11 h-11 rounded-full items-center justify-center ${evaluated
+                      ? "bg-zinc-200"
+                      : "bg-brand"
+                      }`}
                   >
                     <Text
-                      className={`text-xs font-medium ${
-                        evaluated ? "text-muted-foreground" : "text-primary"
-                      }`}
+                      className={`text-lg ${evaluated
+                        ? "text-zinc-500"
+                        : "text-white"
+                        }`}
                     >
-                      {evaluated ? "✓ Calificado" : "Calificar"}
+                      {evaluated ? "✓" : "▶"}
+                    </Text>
+                  </View>
+
+                  {/* User Info */}
+                  <View className="ml-4 flex-1">
+                    <Text className="text-[16px] font-medium text-zinc-700">
+                      {user.name}
+                    </Text>
+
+                    <Text className="text-[11px] uppercase tracking-[1px] text-zinc-400 mt-1">
+                      {evaluated
+                        ? "CALIFICADO"
+                        : "SIN CALIFICAR"}
                     </Text>
                   </View>
                 </View>
