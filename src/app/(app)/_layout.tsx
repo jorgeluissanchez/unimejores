@@ -20,8 +20,8 @@ export default function AppLayout() {
     <CourseProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="course/[courseId]/index" options={{ headerShown: true, title: "Curso", headerBackVisible: true }} />
-        <Stack.Screen name="course/[courseId]/group/[groupId]/evaluatee/[evaluateeId]" options={{ headerShown: true, title: "Evaluación", headerBackVisible: true }} />
+        <Stack.Screen name="course/[courseId]/index" options={{ headerShown: false }} />
+        <Stack.Screen name="course/[courseId]/group/[groupId]/evaluatee/[evaluateeId]" options={{ headerShown: false }} />
         <Stack.Screen name="professor-course/[courseId]/index" options={{ headerShown: true, title: "Detalle del curso", headerBackVisible: true }} />
         <Stack.Screen name="professor-course/[courseId]/categories" options={{ headerShown: true, title: "Categorías", headerBackVisible: true }} />
         <Stack.Screen name="professor-course/[courseId]/students" options={{ headerShown: true, title: "Estudiantes", headerBackVisible: true }} />

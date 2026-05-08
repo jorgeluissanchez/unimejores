@@ -13,6 +13,7 @@
     "reusables:add:all": "pnpm dlx @react-native-reusables/cli@latest add --all --overwrite --path src/core/components/ui --styling-library nativewind"
   },
   "dependencies": {
+    "@expo-google-fonts/abeezee": "^0.4.1",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.15.5",
@@ -76,13 +77,13 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.4.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^55.0.18",
+    "msw": "^2.14.2",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.19",
-    "typescript": "~5.9.2",
-    "msw": "^2.14.2",
-    "@faker-js/faker": "^9.4.0"
+    "typescript": "~5.9.2"
   },
   "private": true,
   "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8"

@@ -2,7 +2,7 @@ import { ILocalPreferences } from "@/core/storage/i-local-preferences";
 import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthRemoteDataSourceImpl } from "@/features/auth/data/datasources/auth-remote-data-source-impl";
 import { CourseDataSource } from "@/features/courses/data/datasources/course-data-source";
-import { Category, Course, CourseUser, Group, UserGroup } from "@/features/courses/domain/entities/course";
+import { Category, Course, CourseUser, Group, PendingEvalData, UserGroup } from "@/features/courses/domain/entities/course";
 
 export class CourseRemoteDataSourceImpl implements CourseDataSource {
   private readonly projectId: string;
@@ -75,5 +75,37 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   async getUserById(userId: string): Promise<CourseUser | null> {
     const rows = await this.readTable<CourseUser>("user", { user_id: userId });
     return rows[0] ?? null;
+  }
+
+  async getPendingEvaluations(userId: string, courses: Course[]): Promise<PendingEvalData[]> {
+    const now = new Date();
+    const perCourse = await Promise.all(
+      courses.map(async (course) => {
+        const categories = await this.getCategoriesByCourse(course._id);
+        const perCategory = await Promise.all(
+          categories.map(async (category) => {
+            const [group, evals] = await Promise.all([
+              this.getGroupByCategory(category._id, userId),
+              this.readTable<{ _id: string; title: string; end_date: string }>("evaluation", { category_id: category._id }),
+            ]);
+            if (!group || !evals[0]) return null;
+            const ev = evals[0];
+            if (new Date(ev.end_date) <= now) return null;
+            return {
+              evaluationId: ev._id,
+              evaluationTitle: ev.title,
+              evaluationEndDate: ev.end_date,
+              courseName: course.name,
+              courseId: course._id,
+              groupId: group._id,
+            } as PendingEvalData;
+          })
+        );
+        return perCategory.filter(Boolean) as PendingEvalData[];
+      })
+    );
+    return perCourse.flat().sort(
+      (a, b) => new Date(a.evaluationEndDate).getTime() - new Date(b.evaluationEndDate).getTime()
+    );
   }
 }

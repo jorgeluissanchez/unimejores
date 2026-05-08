@@ -17,8 +17,8 @@ export class AuthRepositoryImpl implements AuthRepository {
     return this.dataSource.login(email, password);
   }
 
-  async signup(email: string, password: string, name: string): Promise<void> {
-    return this.dataSource.signUp(email, password, name);
+  async signup(email: string, password: string, name: string, role: string): Promise<void> {
+    return this.dataSource.signUp(email, password, name, role);
   }
 
   async logout(): Promise<void> {
@@ -31,10 +31,15 @@ export class AuthRepositoryImpl implements AuthRepository {
       const email = await this.prefs.retrieveData<string>("email");
       if (!userId || !email) return null;
       const role = await this.prefs.retrieveData<string>("role").catch(() => null);
-      return { userId, email, role };
+      const name = await this.prefs.retrieveData<string>("name").catch(() => undefined);
+      return { userId, email, role, name };
     } catch {
       return null;
     }
+  }
+
+  async refreshUserProfile(): Promise<void> {
+    return this.dataSource.refreshUserProfile();
   }
 
   async forgotPassword(email: string): Promise<void> {

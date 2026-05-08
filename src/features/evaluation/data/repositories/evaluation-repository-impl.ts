@@ -17,6 +17,10 @@ export class EvaluationRepositoryImpl implements EvaluationRepository {
     return this.ds.getResultsByEvaluatorInGroup(groupId, evaluatorId);
   }
 
+  getResultsForEvaluatedInGroup(groupId: string, evaluatedId: string): Promise<ResultEvaluation[]> {
+    return this.ds.getResultsForEvaluatedInGroup(groupId, evaluatedId);
+  }
+
   submitEvaluation(groupId: string, evaluatorId: string, evaluatedId: string, scores: Record<string, number>): Promise<void> {
     return this.ds.submitEvaluation(groupId, evaluatorId, evaluatedId, scores);
   }

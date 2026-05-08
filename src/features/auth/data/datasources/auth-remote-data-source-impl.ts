@@ -61,7 +61,9 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ).then((r) => r.json()).catch(() => []);
 
         const role = userRows[0]?.role ?? "student";
+        const name = userRows[0]?.name ?? "";
         await this.prefs.storeData("role", role);
+        await this.prefs.storeData("name", name);
 
         return Promise.resolve();
       } else {
@@ -73,7 +75,7 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  async signUp(email: string, password: string, name: string): Promise<void> {
+  async signUp(email: string, password: string, name: string, role: string = "student"): Promise<void> {
     const signupResponse = await fetch(`${this.baseUrl}/signup-direct`, {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=UTF-8" },
@@ -118,17 +120,31 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     await this.prefs.storeData("refreshToken", refreshToken);
     await this.prefs.storeData("userId", userId);
     await this.prefs.storeData("email", email);
+    await this.prefs.storeData("name", name);
 
     await fetch(`${this.dbUrl}/insert`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         tableName: "user",
-        records: [{ user_id: userId, email, name, role: "student" }],
+        records: [{ user_id: userId, email, name, role }],
       }),
     });
 
-    await this.prefs.storeData("role", "student");
+    await this.prefs.storeData("role", role);
+  }
+
+  async refreshUserProfile(): Promise<void> {
+    const userId = await this.prefs.retrieveData<string>("userId");
+    const token = await this.prefs.retrieveData<string>("token");
+    if (!userId || !token) return;
+    const rows = await fetch(`${this.dbUrl}/read?tableName=user&user_id=${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json()).catch(() => []);
+    if (rows[0]) {
+      await this.prefs.storeData("name", rows[0].name ?? "");
+      await this.prefs.storeData("role", rows[0].role ?? "student");
+    }
   }
 
   async logOut(): Promise<void> {

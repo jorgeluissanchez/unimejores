@@ -1,46 +1,53 @@
-import { Text } from "@/core/components/ui/text";
 import { Criterium } from "@/features/evaluation/domain/entities/evaluation";
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-const SCORE_OPTIONS = [2, 3, 4, 5];
+const SCORES = [0, 1, 2, 3, 4, 5];
+
+function scoreColor(score: number): string {
+  if (score <= 1) return "#F59E0B";
+  if (score === 2) return "#9CA3AF";
+  return "#1E1E2E";
+}
 
 type Props = {
   criterium: Criterium;
-  index: number;
-  total: number;
   selected?: number;
   onSelect: (score: number) => void;
 };
 
-export function CriteriumScoreCard({ criterium, index, total, selected, onSelect }: Props) {
+export function CriteriumScoreCard({ criterium, selected, onSelect }: Props) {
   return (
-    <View>
-      <View className="mb-3">
-        <Text className="text-sm font-semibold text-muted-foreground">
-          Pregunta {index + 1} de {total}
-        </Text>
-        <Text className="mt-1 text-base font-semibold">{criterium.name}</Text>
-        {!!criterium.description && (
-          <Text className="mt-0.5 text-sm text-muted-foreground">{criterium.description}</Text>
-        )}
-      </View>
+    <View className="mb-2">
+      <Text className="text-[22px] font-bold text-[#1E1E2E] leading-[30px] mb-2">
+        {criterium.name}
+      </Text>
 
-      <View className="flex-row gap-3">
-        {SCORE_OPTIONS.map((score) => {
+      {!!criterium.description && (
+        <Text className="text-sm text-gray-400 italic leading-5 mb-1.5">
+          {criterium.description}
+        </Text>
+      )}
+
+      <Text className="text-xs text-gray-400 mb-3.5">Elije solo una.</Text>
+
+      <View className="flex-row gap-2">
+        {SCORES.map((score) => {
           const isSelected = selected === score;
           return (
             <Pressable
               key={score}
               onPress={() => onSelect(score)}
-              className={`flex-1 items-center justify-center rounded-xl border py-4 ${
-                isSelected ? "border-primary bg-primary" : "border-border bg-card"
-              }`}
+              className="flex-1 aspect-square rounded-full items-center justify-center"
+              style={{
+                borderWidth: 1.5,
+                borderColor: isSelected ? scoreColor(score) : "#E5E7EB",
+                backgroundColor: isSelected ? scoreColor(score) : "transparent",
+              }}
             >
               <Text
-                className={`text-xl font-bold ${
-                  isSelected ? "text-primary-foreground" : "text-foreground"
-                }`}
+                className="text-[15px] font-semibold"
+                style={{ color: isSelected ? "#FFFFFF" : "#9CA3AF" }}
               >
                 {score}
               </Text>

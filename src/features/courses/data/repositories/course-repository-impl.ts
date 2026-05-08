@@ -1,5 +1,5 @@
 import { CourseDataSource } from "@/features/courses/data/datasources/course-data-source";
-import { Category, Course, CourseUser, Group, UserGroup } from "@/features/courses/domain/entities/course";
+import { Category, Course, CourseUser, Group, PendingEvalData, UserGroup } from "@/features/courses/domain/entities/course";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 
 export class CourseRepositoryImpl implements CourseRepository {
@@ -23,5 +23,9 @@ export class CourseRepositoryImpl implements CourseRepository {
 
   getUserById(userId: string): Promise<CourseUser | null> {
     return this.ds.getUserById(userId);
+  }
+
+  getPendingEvaluations(userId: string, courses: Course[]): Promise<PendingEvalData[]> {
+    return this.ds.getPendingEvaluations(userId, courses);
   }
 }

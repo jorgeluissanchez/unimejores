@@ -1,4 +1,4 @@
-import { Category, Course, CourseUser, Group, UserGroup } from "@/features/courses/domain/entities/course";
+import { Category, Course, CourseUser, Group, PendingEvalData, UserGroup } from "@/features/courses/domain/entities/course";
 
 export interface CourseDataSource {
   getMyCourses(userId: string): Promise<Course[]>;
@@ -6,4 +6,5 @@ export interface CourseDataSource {
   getGroupByCategory(categoryId: string, userId: string): Promise<Group | null>;
   getMembersByGroup(groupId: string): Promise<UserGroup[]>;
   getUserById(userId: string): Promise<CourseUser | null>;
+  getPendingEvaluations(userId: string, courses: Course[]): Promise<PendingEvalData[]>;
 }

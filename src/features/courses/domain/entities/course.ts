@@ -38,3 +38,12 @@ export type CourseUser = {
   email: string;
   role: string;
 };
+
+export type PendingEvalData = {
+  evaluationId: string;
+  evaluationTitle: string;
+  evaluationEndDate: string;
+  courseName: string;
+  courseId: string;
+  groupId: string;
+};

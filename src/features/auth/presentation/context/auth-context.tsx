@@ -12,7 +12,7 @@ export type AuthContextType = {
   error: string | null;
   clearError: () => void;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<boolean>;
+  signup: (email: string, password: string, name: string, role: string) => Promise<boolean>;
   logout: () => Promise<void>;
   expireSession: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
@@ -47,9 +47,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     authRepo.getCurrentUser()
-      .then((user) => {
-        setLoggedUser(user);
-        setIsLoggedIn(!!user);
+      .then(async (user) => {
+        if (user && !user.name) {
+          await authRepo.refreshUserProfile().catch(() => {});
+          const refreshed = await authRepo.getCurrentUser().catch(() => user);
+          setLoggedUser(refreshed);
+          setIsLoggedIn(!!refreshed);
+        } else {
+          setLoggedUser(user);
+          setIsLoggedIn(!!user);
+        }
       })
       .catch(() => setIsLoggedIn(false))
       .finally(() => setLoading(false));
@@ -70,11 +77,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (email: string, password: string, name: string, role: string) => {
     clearError();
     try {
       setLoading(true);
-      await authRepo.signup(email, password, name);
+      await authRepo.signup(email, password, name, role);
       const user = await authRepo.getCurrentUser();
       setLoggedUser(user);
       setIsLoggedIn(true);

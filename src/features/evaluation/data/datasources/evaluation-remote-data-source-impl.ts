@@ -84,6 +84,13 @@ export class EvaluationRemoteDataSourceImpl {
     });
   }
 
+  async getResultsForEvaluatedInGroup(groupId: string, evaluatedId: string): Promise<ResultEvaluation[]> {
+    return this.readTable<ResultEvaluation>("result_evaluation", {
+      group_id: groupId,
+      evaluated_id: evaluatedId,
+    });
+  }
+
   async submitEvaluation(groupId: string, evaluatorId: string, evaluatedId: string, scores: Record<string, number>): Promise<void> {
     await Promise.all(
       Object.entries(scores).map(([criteriumId, score]) =>
