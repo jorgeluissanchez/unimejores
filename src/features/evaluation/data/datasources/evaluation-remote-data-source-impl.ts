@@ -5,8 +5,6 @@ import {
   Criterium,
   Evaluation,
   EvaluationCriterium,
-  NewResultCriterium,
-  NewResultEvaluation,
   ResultEvaluation,
 } from "@/features/evaluation/domain/entities/evaluation";
 
@@ -59,7 +57,10 @@ export class EvaluationRemoteDataSourceImpl {
     }
   }
 
-  async getEvaluationByCategory(categoryId: string): Promise<Evaluation | null> {
+  async getEvaluationByGroup(groupId: string): Promise<Evaluation | null> {
+    const groups = await this.readTable<{ category_id: string }>("group", { _id: groupId });
+    const categoryId = groups[0]?.category_id;
+    if (!categoryId) return null;
     const rows = await this.readTable<Evaluation>("evaluation", { category_id: categoryId });
     return rows[0] ?? null;
   }
@@ -67,40 +68,32 @@ export class EvaluationRemoteDataSourceImpl {
   async getCriteriaByEvaluation(evaluationId: string): Promise<Criterium[]> {
     const links = await this.readTable<EvaluationCriterium>("evaluation_criterium", { evaluation_id: evaluationId });
     if (links.length === 0) return [];
-
     const criteria = await Promise.all(
       links.map(async (link) => {
-        const rows = await this.readTable<Criterium>("criterium", { criterium_id: link.criterium_id });
+        const rows = await this.readTable<Criterium>("criterium", { _id: link.criterium_id });
         return rows[0] ?? null;
       })
     );
     return criteria.filter(Boolean) as Criterium[];
   }
 
-  async getResultsByEvaluator(evaluationId: string, evaluatorId: string): Promise<ResultEvaluation[]> {
-    return this.readTable<ResultEvaluation>("resultEvaluation", {
-      evaluation_id: evaluationId,
+  async getResultsByEvaluatorInGroup(groupId: string, evaluatorId: string): Promise<ResultEvaluation[]> {
+    return this.readTable<ResultEvaluation>("result_evaluation", {
+      group_id: groupId,
       evaluator_id: evaluatorId,
     });
   }
 
-  async submitEvaluation(result: NewResultEvaluation, scores: NewResultCriterium[]): Promise<void> {
-    // 1. Insert the resultEvaluation
-    await this.insertRecord("resultEvaluation", result);
-
-    // 2. Get the inserted record to get its _id (used as result_id)
-    const rows = await this.readTable<ResultEvaluation>("resultEvaluation", {
-      evaluation_id: result.evaluation_id,
-      evaluator_id: result.evaluator_id,
-      evaluated_id: result.evaluated_id,
-    });
-    const resultId = rows[rows.length - 1]?._id;
-    if (!resultId) throw new Error("No se pudo obtener el ID del resultado");
-
-    // 3. Insert each score
+  async submitEvaluation(groupId: string, evaluatorId: string, evaluatedId: string, scores: Record<string, number>): Promise<void> {
     await Promise.all(
-      scores.map((s) =>
-        this.insertRecord("result_criterium", { ...s, result_id: resultId })
+      Object.entries(scores).map(([criteriumId, score]) =>
+        this.insertRecord("result_evaluation", {
+          evaluator_id: evaluatorId,
+          evaluated_id: evaluatedId,
+          score: String(score),
+          group_id: groupId,
+          criterium_id: criteriumId,
+        })
       )
     );
   }

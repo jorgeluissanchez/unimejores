@@ -1,0 +1,99 @@
+import { Button } from "@/core/components/ui/button";
+import { Card, CardContent } from "@/core/components/ui/card";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/core/components/ui/drawer";
+import { Text } from "@/core/components/ui/text";
+import { LogoutButton } from "@/features/auth/presentation/components/logout-button";
+import { Course } from "@/features/professor/domain/entities/professor";
+import { RelativePathString, useRouter } from "expo-router";
+import React, { useState } from "react";
+import { ActivityIndicator, FlatList, View } from "react-native";
+import { AddCourseForm } from "../components/add-course-form";
+import { CriteriaDrawer } from "../components/criteria-drawer";
+import { UpdateCourseForm } from "../components/update-course-form";
+import { useProfessor } from "../context/professor-context";
+
+export function ProfessorHomeScreen() {
+  const { myCourses, isLoading, deleteCourse } = useProfessor();
+  const router = useRouter();
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
+  const [editCourse, setEditCourse] = useState<Course | null>(null);
+
+  if (isLoading && myCourses.length === 0) {
+    return <View className="flex-1 items-center justify-center"><ActivityIndicator size="large" /></View>;
+  }
+
+  return (
+    <View className="flex-1 p-4">
+      <View className="mb-4 flex-row items-center gap-2">
+        <Text variant="h3" className="flex-1">Mis Cursos</Text>
+        <Button size="sm" variant="outline" onPress={() => setIsCriteriaOpen(true)}>
+          <Text>Criterios</Text>
+        </Button>
+        <Button size="sm" onPress={() => setIsAddOpen(true)}>
+          <Text>Agregar</Text>
+        </Button>
+        <LogoutButton />
+      </View>
+
+      {myCourses.length === 0 ? (
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-muted-foreground">No tienes cursos creados</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={myCourses}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={{ gap: 12, paddingBottom: 88 }}
+          renderItem={({ item }) => (
+            <Card>
+              <CardContent className="py-4">
+                <View className="flex-row items-center gap-3">
+                  <View className="flex-1">
+                    <Text className="font-semibold">{item.name}</Text>
+                    <Text className="text-sm text-muted-foreground">NRC: {item.nrc}</Text>
+                    {!!item.description && <Text className="text-sm text-muted-foreground">{item.description}</Text>}
+                  </View>
+                  <Button size="sm" variant="outline" onPress={() => router.push(`/professor-course/${item._id}` as RelativePathString)}>
+                    <Text>Ver</Text>
+                  </Button>
+                  <Button size="sm" variant="outline" onPress={() => setEditCourse(item)}>
+                    <Text>Editar</Text>
+                  </Button>
+                  <Button size="sm" variant="destructive" onPress={() => deleteCourse(item._id)}>
+                    <Text>Eliminar</Text>
+                  </Button>
+                </View>
+              </CardContent>
+            </Card>
+          )}
+        />
+      )}
+
+      <Drawer open={isAddOpen} onOpenChange={(o) => { if (!o) setIsAddOpen(false); }}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Agregar curso</DrawerTitle>
+            <DrawerDescription>Crea un nuevo curso</DrawerDescription>
+          </DrawerHeader>
+          <View className="px-4"><AddCourseForm onCancel={() => setIsAddOpen(false)} /></View>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={!!editCourse} onOpenChange={(o) => { if (!o) setEditCourse(null); }}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Editar curso</DrawerTitle>
+            <DrawerDescription>Modifica los datos del curso</DrawerDescription>
+          </DrawerHeader>
+          <View className="px-4">
+            {editCourse && <UpdateCourseForm course={editCourse} onCancel={() => setEditCourse(null)} />}
+          </View>
+        </DrawerContent>
+      </Drawer>
+
+      <CriteriaDrawer open={isCriteriaOpen} onClose={() => setIsCriteriaOpen(false)} />
+    </View>
+  );
+}

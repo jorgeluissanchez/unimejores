@@ -7,4 +7,6 @@ export const TOKENS = {
   CourseRepo: Symbol("CourseRepo"),
   EvaluationRemoteDS: Symbol("EvaluationRemoteDS"),
   EvaluationRepo: Symbol("EvaluationRepo"),
+  ProfessorRemoteDS: Symbol("ProfessorRemoteDS"),
+  ProfessorRepo: Symbol("ProfessorRepo"),
 } as const;

@@ -8,6 +8,8 @@ import { CourseRemoteDataSourceImpl } from "@/features/courses/data/datasources/
 import { CourseRepositoryImpl } from "@/features/courses/data/repositories/course-repository-impl";
 import { EvaluationRemoteDataSourceImpl } from "@/features/evaluation/data/datasources/evaluation-remote-data-source-impl";
 import { EvaluationRepositoryImpl } from "@/features/evaluation/data/repositories/evaluation-repository-impl";
+import { ProfessorRemoteDataSourceImpl } from "@/features/professor/data/datasources/professor-remote-data-source-impl";
+import { ProfessorRepositoryImpl } from "@/features/professor/data/repositories/professor-repository-impl";
 import { ProductRemoteDataSourceImpl } from "@/features/products/data/datasources/product-remote-data-source-impl";
 import { ProductRepositoryImpl } from "@/features/products/data/repositories/product-repository-impl";
 
@@ -36,6 +38,11 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         const evaluationRepo = new EvaluationRepositoryImpl(evaluationDS);
         c.register(TOKENS.EvaluationRemoteDS, evaluationDS)
             .register(TOKENS.EvaluationRepo, evaluationRepo);
+
+        const professorDS = new ProfessorRemoteDataSourceImpl(authDS);
+        const professorRepo = new ProfessorRepositoryImpl(professorDS);
+        c.register(TOKENS.ProfessorRemoteDS, professorDS)
+            .register(TOKENS.ProfessorRepo, professorRepo);
 
         return c;
     }, []);

@@ -20,6 +20,7 @@ function decodeJwtPayload(token: string): Record<string, any> {
 export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   private readonly projectId: string;
   private readonly baseUrl: string;
+  private readonly dbUrl: string;
 
   private prefs: ILocalPreferences;
 
@@ -29,9 +30,9 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
     this.projectId = projectId;
     this.baseUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co"}/auth/${this.projectId}`;
+    this.dbUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co"}/database/${this.projectId}`;
     this.prefs = LocalPreferencesAsyncStorage.getInstance();
   }
-
   async login(email: string, password: string): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/login`, {
@@ -39,17 +40,29 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         headers: { "Content-Type": "application/json; charset=UTF-8" },
         body: JSON.stringify({ email, password }),
       });
+       console.log("Respuesta de login:", JSON.stringify({ email, password }));
 
       if (response.ok) {
         const data = await response.json();
         const token = data["accessToken"];
         const refreshToken = data["refreshToken"];
+        if (!token || !refreshToken) throw new Error("Respuesta de login inválida: faltan tokens");
         const payload = decodeJwtPayload(token);
-        const userId = payload["sub"] ?? null;
+        const userId = payload["sub"];
+        if (!userId) throw new Error("Token inválido: no se encontró el identificador de usuario");
         await this.prefs.storeData("token", token);
         await this.prefs.storeData("refreshToken", refreshToken);
         await this.prefs.storeData("userId", userId);
         await this.prefs.storeData("email", email);
+
+        const userRows = await fetch(
+          `${this.dbUrl}/read?tableName=user&user_id=${userId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then((r) => r.json()).catch(() => []);
+
+        const role = userRows[0]?.role ?? "student";
+        await this.prefs.storeData("role", role);
+
         return Promise.resolve();
       } else {
         const body = await response.json();
@@ -60,31 +73,62 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  async signUp(email: string, password: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/signup`, {
+  async signUp(email: string, password: string, name: string): Promise<void> {
+    const signupResponse = await fetch(`${this.baseUrl}/signup-direct`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ email, name, password }),
+    });
+
+    if (!signupResponse.ok) {
+      const body = await signupResponse.json();
+      const message = Array.isArray(body.message)
+        ? body.message.join(" ")
+        : body.message ?? "Error de registro desconocido";
+      throw new Error(`Error al registrar la cuenta: ${message}`);
+    }
+
+    const loginBody = JSON.stringify({ email, password });
+    let loginResponse: Response | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+      loginResponse = await fetch(`${this.baseUrl}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=UTF-8" },
-        body: JSON.stringify({
-          email: email,
-          name: email.split("@")[0],
-          password: password,
-        }),
+        body: loginBody,
       });
-
-      if (response.ok) {
-        return Promise.resolve();
-      } else {
-        const body = await response.json();
-        const message = Array.isArray(body.message)
-          ? body.message.join(" ")
-          : body.message ?? "Error de registro desconocido";
-        throw new Error(`Error al registrar la cuenta: ${message}`);
-      }
-    } catch (e: any) {
-      console.error("Falló el registro", e);
-      throw e;
+      if (loginResponse.ok) break;
     }
+
+    if (!loginResponse || !loginResponse.ok) {
+      const body = await loginResponse?.json().catch(() => ({}));
+      throw new Error(`Cuenta creada pero no se pudo iniciar sesión: ${body.message ?? "intenta iniciar sesión manualmente"}`);
+    }
+
+    const data = await loginResponse.json();
+    const token = data["accessToken"];
+    const refreshToken = data["refreshToken"];
+    if (!token || !refreshToken) throw new Error("Respuesta de login inválida: faltan tokens");
+
+    const payload = decodeJwtPayload(token);
+    const userId = payload["sub"];
+    if (!userId) throw new Error("Token inválido: no se encontró el identificador de usuario");
+
+    await this.prefs.storeData("token", token);
+    await this.prefs.storeData("refreshToken", refreshToken);
+    await this.prefs.storeData("userId", userId);
+    await this.prefs.storeData("email", email);
+
+    await fetch(`${this.dbUrl}/insert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        tableName: "user",
+        records: [{ user_id: userId, email, name, role: "student" }],
+      }),
+    });
+
+    await this.prefs.storeData("role", "student");
   }
 
   async logOut(): Promise<void> {
@@ -112,27 +156,6 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw e;
     }
   }
-
-  async validate(email: string, validationCode: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json; charset=UTF-8" },
-        body: JSON.stringify({ email, code: validationCode }),
-      });
-
-      if (response.ok) {
-        return Promise.resolve();
-      } else {
-        const body = await response.json();
-        throw new Error(`Error de validación: ${body.message ?? "Error de validación desconocido"}`);
-      }
-    } catch (e: any) {
-      console.error("Falló la validación", e);
-      throw e;
-    }
-  }
-
   async refreshToken(): Promise<boolean> {
     try {
       const refreshToken = await this.prefs.retrieveData<string>("refreshToken");

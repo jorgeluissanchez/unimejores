@@ -1,10 +1,16 @@
 import { Text } from "@/core/components/ui/text";
+import { TOKENS } from "@/core/constants/tokens";
+import { useDI } from "@/core/di/di-provider";
+import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category, CourseUser, Group } from "@/features/courses/domain/entities/course";
-import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
-import { EvaluationScreen } from "@/features/evaluation/presentation/screens/evaluation-screen";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Modal, Pressable, View } from "react-native";
+import { PeerCard } from "@/features/courses/presentation/components/peer-card";
+import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
+import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, View } from "react-native";
+
+type PeerStatus = { user: CourseUser; evaluated: boolean };
 
 type CategoryState = {
   category: Category;
@@ -19,27 +25,38 @@ type Props = {
 
 export function CategoryGroupPanel({ categoryState, courseId }: Props) {
   const { category, group, members } = categoryState;
-  const { loggedUser } = useAuth();
-  const { peers, isLoading, error, loadEvaluation } = useEvaluation();
+  const { loggedUser, expireSession } = useAuth();
+  const di = useDI();
+  const evalRepo = useMemo(() => di.resolve<EvaluationRepository>(TOKENS.EvaluationRepo), [di]);
 
-  const [evaluatingPeer, setEvaluatingPeer] = useState<CourseUser | null>(null);
+  const [peers, setPeers] = useState<PeerStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadEvaluation(category.category_id, members);
-  }, [category.category_id]);
+    if (!loggedUser?.userId || !group) { setIsLoading(false); return; }
 
-  const handlePeerPress = (peer: CourseUser, evaluated: boolean) => {
-    if (evaluated) return;
-    setEvaluatingPeer(peer);
-  };
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const results = await evalRepo.getResultsByEvaluatorInGroup(group._id, loggedUser.userId);
+        const evaluatedIds = new Set(results.map((r: ResultEvaluation) => r.evaluated_id));
+        setPeers(
+          members
+            .filter((m) => m.user_id !== loggedUser.userId)
+            .map((m) => ({ user: m, evaluated: evaluatedIds.has(m.user_id) }))
+        );
+      } catch (e) {
+        if (isSessionExpiredError(e)) { await expireSession(); return; }
+        setError((e as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleEvaluationDone = () => {
-    setEvaluatingPeer(null);
-  };
-
-  const handleNextPeer = (nextPeer: CourseUser) => {
-    setEvaluatingPeer(nextPeer);
-  };
+    load();
+  }, [category._id, group?._id, loggedUser?.userId]);
 
   if (!group) {
     return (
@@ -67,79 +84,34 @@ export function CategoryGroupPanel({ categoryState, courseId }: Props) {
     );
   }
 
-  const otherMembers = members.filter((m) => m.user_id !== loggedUser?.userId);
-
   return (
     <View className="flex-1 p-4">
       <Text className="mb-1 text-base font-semibold text-foreground">
         Grupo: {group.name}
       </Text>
       <Text className="mb-4 text-sm text-muted-foreground">
-        {otherMembers.length} compañero{otherMembers.length !== 1 ? "s" : ""} por evaluar
+        {peers.length} compañero{peers.length !== 1 ? "s" : ""} por evaluar
       </Text>
 
       {peers.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-muted-foreground">No hay evaluación activa para esta categoría</Text>
+          <Text className="text-muted-foreground">No hay compañeros en este grupo</Text>
         </View>
       ) : (
         <FlatList
           data={peers}
           keyExtractor={(item) => item.user.user_id}
           contentContainerStyle={{ gap: 10 }}
-          renderItem={({ item }) => {
-            const { user, evaluated } = item;
-            return (
-              <Pressable
-                onPress={() => handlePeerPress(user, evaluated)}
-                disabled={evaluated}
-                className={`rounded-xl border p-4 ${
-                  evaluated
-                    ? "border-border bg-muted opacity-60"
-                    : "border-primary/30 bg-card active:opacity-70"
-                }`}
-              >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text className="font-medium">{user.name}</Text>
-                    <Text className="text-sm text-muted-foreground">{user.email}</Text>
-                  </View>
-                  <View
-                    className={`rounded-full px-3 py-1 ${
-                      evaluated ? "bg-muted-foreground/20" : "bg-primary/10"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-medium ${
-                        evaluated ? "text-muted-foreground" : "text-primary"
-                      }`}
-                    >
-                      {evaluated ? "✓ Calificado" : "Calificar"}
-                    </Text>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          }}
+          renderItem={({ item }) => (
+            <PeerCard
+              user={item.user}
+              evaluated={item.evaluated}
+              courseId={courseId}
+              groupId={group._id}
+            />
+          )}
         />
       )}
-
-      {/* Evaluation Modal */}
-      <Modal
-        visible={!!evaluatingPeer}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setEvaluatingPeer(null)}
-      >
-        {evaluatingPeer && (
-          <EvaluationScreen
-            peer={evaluatingPeer}
-            courseId={courseId}
-            onDone={handleEvaluationDone}
-            onNext={handleNextPeer}
-          />
-        )}
-      </Modal>
     </View>
   );
 }

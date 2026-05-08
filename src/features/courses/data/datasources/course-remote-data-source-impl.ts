@@ -43,14 +43,11 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async getMyCourses(userId: string): Promise<Course[]> {
-    // 1. Get user_course rows for this user
     const userCourses = await this.readTable<{ course_id: string }>("user_course", { user_id: userId });
     if (userCourses.length === 0) return [];
-
-    // 2. Fetch each course
     const courses = await Promise.all(
       userCourses.map(async (uc) => {
-        const rows = await this.readTable<Course>("course", { course_id: uc.course_id });
+        const rows = await this.readTable<Course>("course", { _id: uc.course_id });
         return rows[0] ?? null;
       })
     );
@@ -62,12 +59,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async getGroupByCategory(categoryId: string, userId: string): Promise<Group | null> {
-    // Find user_group entries for this user, then find which group belongs to this category
     const userGroups = await this.readTable<UserGroup>("user_group", { user_id: userId });
     if (userGroups.length === 0) return null;
-
     for (const ug of userGroups) {
-      const rows = await this.readTable<Group>("group", { group_id: ug.group_id, category_id: categoryId });
+      const rows = await this.readTable<Group>("group", { _id: ug.group_id, category_id: categoryId });
       if (rows.length > 0) return rows[0];
     }
     return null;

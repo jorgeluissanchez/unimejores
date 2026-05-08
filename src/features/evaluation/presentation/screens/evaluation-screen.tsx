@@ -1,46 +1,81 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
-import { CourseUser } from "@/features/courses/domain/entities/course";
-import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
-import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { TOKENS } from "@/core/constants/tokens";
+import { useDI } from "@/core/di/di-provider";
+import { isSessionExpiredError } from "@/core/lib/utils";
+import { useAuth } from "@/features/auth/presentation/context/auth-context";
+import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
+import { CriteriumScoreCard } from "@/features/evaluation/presentation/components/criterium-score-card";
+import { EvaluationProvider, useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
+import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
-const SCORE_OPTIONS = [2, 3, 4, 5];
+function EvaluationContent() {
+  const router = useRouter();
+  const { courseId, groupId, evaluateeId } = useLocalSearchParams<{
+    courseId: string;
+    groupId: string;
+    evaluateeId: string;
+  }>();
 
-type Props = {
-  peer: CourseUser;
-  courseId: string;
-  onDone: () => void;
-  onNext: (peer: CourseUser) => void;
-};
+  const di = useDI();
+  const { expireSession } = useAuth();
+  const { criteria, peers, isLoading, error, loadEvaluation, submitScores } = useEvaluation();
+  const courseRepo = useMemo(() => di.resolve<CourseRepository>(TOKENS.CourseRepo), [di]);
 
-export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
-  const { criteria, peers, isLoading, error, submitScores } = useEvaluation();
   const [scores, setScores] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(true);
 
-  const allAnswered = criteria.length > 0 && criteria.every((c) => scores[c.criterium_id] !== undefined);
+  useEffect(() => {
+    if ( !groupId) return;
 
-  const pendingPeers = peers.filter((p) => !p.evaluated && p.user.user_id !== peer.user_id);
+    const fetchMembers = async () => {
+      try {
+        setLoadingMembers(true);
+        const userGroups = await courseRepo.getMembersByGroup(groupId);
+        const memberDetails = await Promise.all(
+          userGroups.map((ug) => courseRepo.getUserById(ug.user_id))
+        );
+        const members = memberDetails.filter(Boolean) as any[];
+        await loadEvaluation(groupId, members);
+      } catch (e) {
+        if (isSessionExpiredError(e)) await expireSession();
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    fetchMembers();
+  }, [groupId]);
+
+  const evaluateePeer = peers.find((p) => p.user.user_id === evaluateeId);
+  const peer = evaluateePeer?.user ?? { user_id: evaluateeId, name: "", email: "", _id: evaluateeId, role: "", created_at: "" };
+  const pendingPeers = peers.filter((p) => !p.evaluated && p.user.user_id !== evaluateeId);
   const hasNext = pendingPeers.length > 0;
+  const allAnswered = criteria.length > 0 && criteria.every((c) => scores[c._id] !== undefined);
 
   const handleSubmit = async (goNext: boolean) => {
     if (!allAnswered) return;
     try {
       setSubmitting(true);
-      await submitScores(peer.user_id, scores);
+      await submitScores(groupId, evaluateeId, scores);
       setScores({});
       if (goNext && hasNext) {
-        onNext(pendingPeers[0].user);
+        const next = pendingPeers[0].user;
+        router.replace({
+          pathname: `/course/${courseId}/group/${groupId}/evaluatee/${next.user_id}` as RelativePathString
+        });
       } else {
-        onDone();
+        router.back();
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || loadingMembers) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" />
@@ -52,7 +87,7 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-6">
         <Text className="text-center text-destructive">{error}</Text>
-        <Button variant="outline" className="mt-4" onPress={onDone}>
+        <Button variant="outline" className="mt-4" onPress={() => router.back()}>
           <Text>Volver</Text>
         </Button>
       </View>
@@ -65,7 +100,7 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         <Text className="text-center text-muted-foreground">
           Esta evaluación no tiene criterios configurados
         </Text>
-        <Button variant="outline" className="mt-4" onPress={onDone}>
+        <Button variant="outline" className="mt-4" onPress={() => router.back()}>
           <Text>Volver</Text>
         </Button>
       </View>
@@ -74,7 +109,6 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
       <View className="border-b border-border px-5 pb-4 pt-6">
         <Text className="text-sm text-muted-foreground">Evaluando a</Text>
         <Text variant="h2">{peer.name}</Text>
@@ -86,59 +120,20 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         contentContainerStyle={{ padding: 20, gap: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {criteria.map((criterium, index) => {
-          const selected = scores[criterium.criterium_id];
-          return (
-            <View key={criterium.criterium_id}>
-              {/* Question */}
-              <View className="mb-3">
-                <Text className="text-sm font-semibold text-muted-foreground">
-                  Pregunta {index + 1} de {criteria.length}
-                </Text>
-                <Text className="mt-1 text-base font-semibold">{criterium.name}</Text>
-                {!!criterium.description && (
-                  <Text className="mt-0.5 text-sm text-muted-foreground">{criterium.description}</Text>
-                )}
-              </View>
-
-              {/* Score options */}
-              <View className="flex-row gap-3">
-                {SCORE_OPTIONS.map((score) => {
-                  const isSelected = selected === score;
-                  return (
-                    <Pressable
-                      key={score}
-                      onPress={() =>
-                        setScores((prev) => ({ ...prev, [criterium.criterium_id]: score }))
-                      }
-                      className={`flex-1 items-center justify-center rounded-xl border py-4 ${
-                        isSelected
-                          ? "border-primary bg-primary"
-                          : "border-border bg-card"
-                      }`}
-                    >
-                      <Text
-                        className={`text-xl font-bold ${
-                          isSelected ? "text-primary-foreground" : "text-foreground"
-                        }`}
-                      >
-                        {score}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        })}
+        {criteria.map((criterium, index) => (
+          <CriteriumScoreCard
+            key={criterium._id}
+            criterium={criterium}
+            index={index}
+            total={criteria.length}
+            selected={scores[criterium._id]}
+            onSelect={(score) => setScores((prev) => ({ ...prev, [criterium._id]: score }))}
+          />
+        ))}
       </ScrollView>
 
-      {/* Bottom buttons */}
       <View className="border-t border-border px-5 pb-8 pt-4 gap-3">
-        <Button
-          variant="outline"
-          onPress={onDone}
-        >
+        <Button variant="outline" onPress={() => router.back()}>
           <Text>Cancelar</Text>
         </Button>
 
@@ -149,10 +144,7 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         )}
 
         {hasNext && (
-          <Button
-            onPress={() => handleSubmit(true)}
-            disabled={!allAnswered || submitting}
-          >
+          <Button onPress={() => handleSubmit(true)} disabled={!allAnswered || submitting}>
             <Text>{submitting ? "Guardando..." : "Guardar y calificar siguiente"}</Text>
           </Button>
         )}
@@ -166,5 +158,13 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         </Button>
       </View>
     </View>
+  );
+}
+
+export default function EvaluationScreen() {
+  return (
+    <EvaluationProvider>
+      <EvaluationContent />
+    </EvaluationProvider>
   );
 }

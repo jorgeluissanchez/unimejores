@@ -3,7 +3,7 @@ import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { CourseUser } from "@/features/courses/domain/entities/course";
-import { Criterium, Evaluation, NewResultCriterium, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
+import { Criterium, Evaluation, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
 import React, { createContext, useContext, useMemo, useState } from "react";
 
@@ -18,8 +18,8 @@ type EvaluationContextType = {
   peers: PeerEvalStatus[];
   isLoading: boolean;
   error: string | null;
-  loadEvaluation: (categoryId: string, groupMembers: CourseUser[]) => Promise<void>;
-  submitScores: (evaluatedId: string, scores: Record<string, number>) => Promise<void>;
+  loadEvaluation: (groupId: string, groupMembers: CourseUser[]) => Promise<void>;
+  submitScores: (groupId: string, evaluatedId: string, scores: Record<string, number>) => Promise<void>;
 };
 
 const EvaluationContext = createContext<EvaluationContextType | undefined>(undefined);
@@ -35,13 +35,13 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadEvaluation = async (categoryId: string, groupMembers: CourseUser[]) => {
+  const loadEvaluation = async (groupId: string, groupMembers: CourseUser[]) => {
     if (!loggedUser?.userId) return;
     try {
       setIsLoading(true);
       setError(null);
 
-      const eval_ = await repo.getEvaluationByCategory(categoryId);
+      const eval_ = await repo.getEvaluationByGroup(groupId);
       setEvaluation(eval_);
 
       if (!eval_) {
@@ -51,18 +51,18 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
       }
 
       const [crit, results] = await Promise.all([
-        repo.getCriteriaByEvaluation(eval_.evaluation_id),
-        repo.getResultsByEvaluator(eval_.evaluation_id, loggedUser.userId),
+        repo.getCriteriaByEvaluation(eval_._id),
+        repo.getResultsByEvaluatorInGroup(groupId, loggedUser.userId),
       ]);
 
       setCriteria(crit);
 
       const evaluatedIds = new Set(results.map((r: ResultEvaluation) => r.evaluated_id));
-      const peerList = groupMembers
-        .filter((m) => m.user_id !== loggedUser.userId)
-        .map((m) => ({ user: m, evaluated: evaluatedIds.has(m.user_id) }));
-
-      setPeers(peerList);
+      setPeers(
+        groupMembers
+          .filter((m) => m.user_id !== loggedUser.userId)
+          .map((m) => ({ user: m, evaluated: evaluatedIds.has(m.user_id) }))
+      );
     } catch (e) {
       if (isSessionExpiredError(e)) {
         await expireSession();
@@ -77,37 +77,18 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const submitScores = async (evaluatedId: string, scores: Record<string, number>) => {
+  const submitScores = async (groupId: string, evaluatedId: string, scores: Record<string, number>) => {
     if (!loggedUser?.userId || !evaluation) return;
     try {
       setIsLoading(true);
       setError(null);
-
-      const scoreEntries: NewResultCriterium[] = Object.entries(scores).map(([criteriumId, score]) => ({
-        result_id: "",
-        criterium_id: criteriumId,
-        score,
-      }));
-
-      await repo.submitEvaluation(
-        {
-          evaluation_id: evaluation.evaluation_id,
-          evaluator_id: loggedUser.userId,
-          evaluated_id: evaluatedId,
-        },
-        scoreEntries
-      );
-
-      // Mark as evaluated locally
+      await repo.submitEvaluation(groupId, loggedUser.userId, evaluatedId, scores);
       setPeers((prev) =>
         prev.map((p) => (p.user.user_id === evaluatedId ? { ...p, evaluated: true } : p))
       );
     } catch (e) {
       if (isSessionExpiredError(e)) {
         await expireSession();
-        setEvaluation(null);
-        setCriteria([]);
-        setPeers([]);
         return;
       }
       setError((e as Error).message);

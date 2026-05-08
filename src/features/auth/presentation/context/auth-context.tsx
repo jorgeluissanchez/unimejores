@@ -12,11 +12,10 @@ export type AuthContextType = {
   error: string | null;
   clearError: () => void;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
   expireSession: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  validate: (email: string, validationCode: string) => Promise<string | null>;
   getLoggedUser: () => Promise<any | null>;
 };
 
@@ -71,11 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (email: string, password: string, name: string) => {
     clearError();
     try {
       setLoading(true);
-      await authRepo.signup(email, password);
+      await authRepo.signup(email, password, name);
+      const user = await authRepo.getCurrentUser();
+      setLoggedUser(user);
+      setIsLoggedIn(true);
       return true;
     } catch (err: any) {
       setError(err?.message ?? "Error al registrar la cuenta");
@@ -116,16 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const validate = async (email: string, validationCode: string) => {
-    clearError();
-    try {
-      await authRepo.validate(email, validationCode);
-    } catch (err: any) {
-      return err?.message ?? "Error de validación";
-    }
-    return null;
-  }
-
   const getLoggedUser = async () => {
     try {
       return await authRepo.getCurrentUser();
@@ -135,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ loggedUser, isLoggedIn, loading, error, clearError, login, signup, logout, expireSession, forgotPassword, validate, getLoggedUser }}>
+    <AuthContext.Provider value={{ loggedUser, isLoggedIn, loading, error, clearError, login, signup, logout, expireSession, forgotPassword, getLoggedUser }}>
       {children}
     </AuthContext.Provider>
   );

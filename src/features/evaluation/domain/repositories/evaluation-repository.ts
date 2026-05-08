@@ -1,14 +1,8 @@
-import {
-  Criterium,
-  Evaluation,
-  NewResultCriterium,
-  NewResultEvaluation,
-  ResultEvaluation,
-} from "@/features/evaluation/domain/entities/evaluation";
+import { Criterium, Evaluation, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 
 export interface EvaluationRepository {
-  getEvaluationByCategory(categoryId: string): Promise<Evaluation | null>;
+  getEvaluationByGroup(groupId: string): Promise<Evaluation | null>;
   getCriteriaByEvaluation(evaluationId: string): Promise<Criterium[]>;
-  getResultsByEvaluator(evaluationId: string, evaluatorId: string): Promise<ResultEvaluation[]>;
-  submitEvaluation(result: NewResultEvaluation, scores: NewResultCriterium[]): Promise<void>;
+  getResultsByEvaluatorInGroup(groupId: string, evaluatorId: string): Promise<ResultEvaluation[]>;
+  submitEvaluation(groupId: string, evaluatorId: string, evaluatedId: string, scores: Record<string, number>): Promise<void>;
 }

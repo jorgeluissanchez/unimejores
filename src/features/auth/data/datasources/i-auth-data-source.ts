@@ -6,5 +6,4 @@ export interface IAuthDataSource {
   logout(): Promise<void>;
   getCurrentUser(): Promise<AuthUser | null>;
   forgotPassword(email: string): Promise<void>;
-  validate(email: string, validationCode: string): Promise<string | null>;
 }
