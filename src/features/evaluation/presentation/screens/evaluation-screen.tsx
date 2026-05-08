@@ -1,11 +1,10 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
+import { CriteriumScoreCard } from "@/features/evaluation/presentation/components/criterium-score-card";
 import { CourseUser } from "@/features/courses/domain/entities/course";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
-
-const SCORE_OPTIONS = [2, 3, 4, 5];
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
 type Props = {
   peer: CourseUser;
@@ -74,7 +73,6 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
       <View className="border-b border-border px-5 pb-4 pt-6">
         <Text className="text-sm text-muted-foreground">Evaluando a</Text>
         <Text variant="h2">{peer.name}</Text>
@@ -86,59 +84,20 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         contentContainerStyle={{ padding: 20, gap: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {criteria.map((criterium, index) => {
-          const selected = scores[criterium.criterium_id];
-          return (
-            <View key={criterium.criterium_id}>
-              {/* Question */}
-              <View className="mb-3">
-                <Text className="text-sm font-semibold text-muted-foreground">
-                  Pregunta {index + 1} de {criteria.length}
-                </Text>
-                <Text className="mt-1 text-base font-semibold">{criterium.name}</Text>
-                {!!criterium.description && (
-                  <Text className="mt-0.5 text-sm text-muted-foreground">{criterium.description}</Text>
-                )}
-              </View>
-
-              {/* Score options */}
-              <View className="flex-row gap-3">
-                {SCORE_OPTIONS.map((score) => {
-                  const isSelected = selected === score;
-                  return (
-                    <Pressable
-                      key={score}
-                      onPress={() =>
-                        setScores((prev) => ({ ...prev, [criterium.criterium_id]: score }))
-                      }
-                      className={`flex-1 items-center justify-center rounded-xl border py-4 ${
-                        isSelected
-                          ? "border-primary bg-primary"
-                          : "border-border bg-card"
-                      }`}
-                    >
-                      <Text
-                        className={`text-xl font-bold ${
-                          isSelected ? "text-primary-foreground" : "text-foreground"
-                        }`}
-                      >
-                        {score}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        })}
+        {criteria.map((criterium, index) => (
+          <CriteriumScoreCard
+            key={criterium.criterium_id}
+            criterium={criterium}
+            index={index}
+            total={criteria.length}
+            selected={scores[criterium.criterium_id]}
+            onSelect={(score) => setScores((prev) => ({ ...prev, [criterium.criterium_id]: score }))}
+          />
+        ))}
       </ScrollView>
 
-      {/* Bottom buttons */}
       <View className="border-t border-border px-5 pb-8 pt-4 gap-3">
-        <Button
-          variant="outline"
-          onPress={onDone}
-        >
+        <Button variant="outline" onPress={onDone}>
           <Text>Cancelar</Text>
         </Button>
 
@@ -149,10 +108,7 @@ export function EvaluationScreen({ peer, courseId, onDone, onNext }: Props) {
         )}
 
         {hasNext && (
-          <Button
-            onPress={() => handleSubmit(true)}
-            disabled={!allAnswered || submitting}
-          >
+          <Button onPress={() => handleSubmit(true)} disabled={!allAnswered || submitting}>
             <Text>{submitting ? "Guardando..." : "Guardar y calificar siguiente"}</Text>
           </Button>
         )}
