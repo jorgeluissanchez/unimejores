@@ -1,6 +1,7 @@
+import { Text } from "@/core/components/ui/text";
 import { Criterium } from "@/features/evaluation/domain/entities/evaluation";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 const SCORES = [0, 1, 2, 3, 4, 5];
 

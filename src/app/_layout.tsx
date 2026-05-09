@@ -7,6 +7,7 @@ import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack } from 'expo-router';
 import React from 'react';
+import { StatusBar } from 'react-native';
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -19,6 +20,13 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <>
+    <StatusBar 
+          animated={true}
+          barStyle="dark-content"
+          showHideTransition="slide"
+          hidden={true}
+        />
     <DIProvider>
       <AuthProvider>
         <ThemeProvider value={theme}>
@@ -33,5 +41,6 @@ export default function RootLayout() {
         </ThemeProvider>
       </AuthProvider>
     </DIProvider>
+    </>
   );
 }

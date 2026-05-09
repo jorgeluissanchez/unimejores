@@ -1,3 +1,5 @@
+import { Button } from "@/core/components/ui/button";
+import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
 import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
@@ -9,15 +11,12 @@ import {
   useEvaluation,
 } from "@/features/evaluation/presentation/context/evaluation-context";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Check } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
-  StatusBar,
-  Text,
-  View,
+  View
 } from "react-native";
 
 function ProgressDot({ state, index }: { state: "done" | "current" | "pending"; index: number }) {
@@ -119,26 +118,26 @@ function EvaluationContent() {
         <Text className="text-red-500 text-center mb-4">
           {error ?? "Esta evaluación no tiene criterios configurados"}
         </Text>
-        <Pressable onPress={() => router.replace(`/course/${courseId}` as RelativePathString)}>
-          <Text className="text-[#818CF8]">Volver</Text>
-        </Pressable>
+        <Button variant="link" onPress={() => router.replace(`/course/${courseId}` as RelativePathString)}>
+          <Text>Volver</Text>
+        </Button>
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View className="flex-row items-center px-5 pt-[52px] pb-4 gap-3">
-        <Pressable
+        <Button
+          variant="ghost"
+          size="icon"
           onPress={() => router.replace(`/course/${courseId}` as RelativePathString)}
-          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center"
+          className="rounded-full bg-white/30"
         >
-          <ArrowLeft size={18} color="#1E1E2E" />
-        </Pressable>
-
+          <Check className="text-gray-800 w-5 h-5" />
+        </Button>
         <View className="flex-1">
           <Text className="text-base font-bold text-[#1E1E2E]">
             Evaluando a {peer.name}
@@ -186,7 +185,7 @@ function EvaluationContent() {
             Responde todas las preguntas para continuar
           </Text>
         )}
-        <Pressable
+        <Button
           onPress={handleSubmit}
           disabled={!allAnswered || submitting}
           className="rounded-full py-[18px] items-center"
@@ -195,7 +194,7 @@ function EvaluationContent() {
           <Text className="text-white text-sm font-bold tracking-[1.5px]">
             {submitting ? "GUARDANDO..." : hasNext ? "SIGUIENTE COMPAÑEROS" : "TERMINAR"}
           </Text>
-        </Pressable>
+        </Button>
       </View>
     </View>
   );

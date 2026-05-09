@@ -1,16 +1,14 @@
-import { useAuth } from "@/features/auth/presentation/context/auth-context";
-import { PendingEvalData } from "@/features/courses/domain/entities/course";
+import { Button } from "@/core/components/ui/button";
+import { Text } from "@/core/components/ui/text";
+import { Course, PendingEvalData } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
-import { Course } from "@/features/courses/domain/entities/course";
 import { RelativePathString, useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  StatusBar,
-  Text,
-  View,
+  View
 } from "react-native";
 
 const CARD_COLORS = ["#818CF8", "#F59E0B", "#34D399", "#F472B6", "#60A5FA", "#A78BFA"];
@@ -27,33 +25,12 @@ function formatTimeUntil(endDate: string): string {
 function PendingEvalCard({ data }: { data: PendingEvalData }) {
   const router = useRouter();
   return (
-    <Pressable
-      onPress={() => router.push(`/course/${data.courseId}` as RelativePathString)}
-      className="rounded-[20px] p-5 mb-5 overflow-hidden bg-[#818CF8]"
+    <View
+      className="rounded-[20px] p-5 mb-5 overflow-hidden bg-indigo-100"
     >
       {/* Decorative circles — negative positioning requires inline style */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: -30,
-          right: -30,
-          width: 120,
-          height: 120,
-          borderRadius: 60,
-          backgroundColor: "rgba(255,255,255,0.15)",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          bottom: 20,
-          right: 40,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          backgroundColor: "rgba(255,255,255,0.1)",
-        }}
-      />
+      <View className="absolute bottom-[-30px] right-[-30px] w-[120px] h-[120px] rounded-full bg-white opacity-15" />  
+      <View className="absolute bottom-[-10px] right-[-10px] w-[60px] h-[60px] rounded-full bg-white opacity-10" />
 
       <View className="flex-row justify-between items-start">
         <Text className="text-white text-[18px] font-bold flex-1">
@@ -69,17 +46,15 @@ function PendingEvalCard({ data }: { data: PendingEvalData }) {
       <Text className="text-[12px] mt-1 mb-4" style={{ color: "rgba(255,255,255,0.8)" }}>
         {data.evaluationTitle.toUpperCase()}
       </Text>
-
-      <Pressable
+      <Button
+        className="bg-white"
         onPress={() => router.push(`/course/${data.courseId}` as RelativePathString)}
-        className="rounded-full py-3 items-center"
-        style={{ backgroundColor: "rgba(255,255,255,0.9)" }}
       >
         <Text className="text-[#818CF8] text-[13px] font-bold tracking-[1px]">
           EVALUAR
         </Text>
-      </Pressable>
-    </Pressable>
+      </Button>
+    </View>
   );
 }
 
@@ -90,23 +65,11 @@ function CourseCard({ course, color, pendingCount }: { course: Course; color: st
     : `${pendingCount} Grupo${pendingCount !== 1 ? "s" : ""} por Calificar`;
 
   return (
-    <Pressable
-      onPress={() => router.push(`/course/${course._id}` as RelativePathString)}
+    <View
       className="flex-1 rounded-[20px] p-4 overflow-hidden justify-between"
-      style={{ backgroundColor: color, minHeight: 160 }}
     >
       {/* Decorative circle — negative positioning requires inline style */}
-      <View
-        style={{
-          position: "absolute",
-          top: -20,
-          right: -20,
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: "rgba(255,255,255,0.2)",
-        }}
-      />
+      <View className="absolute bottom-[-20px] right-[-20px] w-[80px] h-[80px] rounded-full bg-white opacity-20" />
 
       <Text className="text-white text-[15px] font-bold leading-5">
         {course.name}
@@ -116,23 +79,22 @@ function CourseCard({ course, color, pendingCount }: { course: Course; color: st
         <Text className="text-[11px] mb-2.5 leading-[15px]" style={{ color: "rgba(255,255,255,0.85)" }}>
           {statusText}
         </Text>
-        <Pressable
+        <Button
+          className="bg-white"
           onPress={() => router.push(`/course/${course._id}` as RelativePathString)}
-          className="rounded-full py-2 items-center"
-          style={{ backgroundColor: pendingCount === 0 ? "rgba(255,255,255,0.3)" : "#1E1E2E" }}
+          disabled={pendingCount === 0}
         >
-          <Text className="text-white text-[11px] font-bold tracking-[1px]">
+          <Text className="text-[#818CF8] text-[13px] font-bold tracking-[1px]">
             COMIENZA
           </Text>
-        </Pressable>
+        </Button>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
 export default function CoursesScreen() {
   const { courses, isLoading, error, refreshCourses, pendingEvaluations, pendingLoading } = useCourses();
-  const { loggedUser } = useAuth();
 
   const featuredEval = pendingEvaluations[0] ?? null;
 
@@ -146,7 +108,6 @@ export default function CoursesScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <FlatList
         data={courses}
