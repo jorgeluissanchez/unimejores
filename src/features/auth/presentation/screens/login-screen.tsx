@@ -11,9 +11,9 @@ export default function LoginScreen() {
 
   return (
     <View className="flex-1 bg-white overflow-hidden">
-      <View className="absolute -top-16 -left-16 w-[200px] h-[200px] rounded-full bg-[#ECEEFF]" />
-      <View className="absolute -top-8 -right-20 w-[220px] h-[220px] rounded-full bg-[#ECEEFF]" />
-      <View className="absolute top-20 -right-24 w-[180px] h-[180px] rounded-full bg-[#F0F1FF]" />
+      <View className="absolute -top-16 -left-16 w-[200px] -z-10 h-[200px] rounded-full bg-[#ECEEFF]" />
+      <View className="absolute -top-8 -right-20 w-[220px] -z-10 h-[220px] rounded-full bg-[#ECEEFF]" />
+      <View className="absolute top-20 -right-24 w-[180px] -z-10 h-[180px] rounded-full bg-[#F0F1FF]" />
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 48 }}
@@ -24,7 +24,7 @@ export default function LoginScreen() {
         <Button
           variant="ghost"
           size="icon"
-          onPress={() => router.replace("/landing" as RelativePathString)}
+          onPress={() => router.push("/landing" as RelativePathString)}
           className="absolute left-5 top-[52px] rounded-full bg-white/30"
         >
           <ArrowLeft className="text-gray-800 w-5 h-5" />
@@ -37,7 +37,7 @@ export default function LoginScreen() {
         </View>
 
         {/* Form */}
-        <View className="px-6">
+        <View className="px-6 w-full max-w-lg self-center">
           <LoginForm />
         </View>
 
