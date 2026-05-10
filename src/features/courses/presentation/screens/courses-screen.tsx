@@ -14,24 +14,32 @@ import {
 } from "react-native";
 import { SvgXml } from "react-native-svg";
 
-const CARD_COLORS = ["#818CF8", "#F59E0B", "#34D399", "#F472B6", "#60A5FA", "#A78BFA"];
-const CARD_THEMES = [
+type CourseCardTheme = {
+  background: string;
+  text: string;
+  secondaryText: string;
+  buttonBackground: string;
+  buttonText: string;
+  svg: string;
+};
+
+const CARD_THEMES: CourseCardTheme[] = [
   {
     background: "#8E97FD",
-    button: "#EBEAEC",
-    buttonText: "#3F414E",
     text: "#F7E8D0",
     secondaryText: "#FFECCC",
+    buttonBackground: "#EBEAEC",
+    buttonText: "#3F414E",
     svg: CARD_PURPLE_SVG,
   },
   {
-    background: "#8E97FD",
-    button: "#EBEAEC",
-    buttonText: "#3F414E",
-    text: "#F7E8D0",
-    secondaryText: "#FFECCC",
+    background: "#FFCB7E",
+    text: "#3F414E",
+    secondaryText: "#524F53",
+    buttonBackground: "#3F414E",
+    buttonText: "#FEFFFE",
     svg: CARD_ORANGE_SVG,
-  },
+  }
 ];
 
 function formatTimeUntil(endDate: string): string {
@@ -47,30 +55,33 @@ function PendingEvalCard({ data }: { data: PendingEvalData }) {
   const router = useRouter();
   return (
     <View
-      className="rounded-[20px] p-5 mb-5 overflow-hidden"
-      style={{ backgroundColor: "#8E97FD" }}
+      className="mb-5 overflow-hidden rounded-[22px] px-5 py-6"
+      style={{ backgroundColor: CARD_THEMES[0].background, width: '100%' }}
     >
-      {/* Decorative circles — negative positioning requires inline style */}
-      <View className="absolute bottom-[-30px] right-[-30px] w-[120px] h-[120px] rounded-full opacity-15" style={{ backgroundColor: "#808AFF" }} />
-      <View className="absolute bottom-[-10px] right-[-10px] w-[60px] h-[60px] rounded-full opacity-10" style={{ backgroundColor: "#808AFF" }} />
+      <View className="absolute right-[-12px] top-[-18px] opacity-95">
+        <SvgXml xml={CARD_THEMES[0].svg} width={100} height={100} />
+      </View>
+      <View className="absolute bottom-[-26px] right-[-26px] h-[108px] w-[108px] rounded-full opacity-10" style={{ backgroundColor: "#808AFF" }} />
+      <View className="absolute bottom-[-4px] left-[-18px] h-[74px] w-[74px] rounded-full opacity-10" style={{ backgroundColor: "#99A1FF" }} />
 
       <View className="flex-row justify-between items-start">
-        <Text className="text-[18px] font-bold flex-1" style={{ color: "#F7E8D0" }}>
+        <Text className="flex-1 text-[19px] font-bold leading-6" style={{ color: CARD_THEMES[0].text }}>
           {data.courseName}
         </Text>
-        <Text className="text-[12px] mt-1" style={{ color: "#FFECCC" }}>
+        <Text className="mt-1 text-[12px]" style={{ color: CARD_THEMES[0].secondaryText }}>
           {formatTimeUntil(data.evaluationEndDate)}
         </Text>
       </View>
 
-      <Text className="text-[12px] mt-1 mb-4" style={{ color: "#FFECCC" }}>
+      <Text className="mb-5 mt-1 text-[12px] tracking-wide" style={{ color: CARD_THEMES[0].secondaryText }}>
         {data.evaluationTitle.toUpperCase()}
       </Text>
       <Button
-        className="bg-[#EBEAEC] rounded-md hover:bg-[#EBEAEC]/90"
+        className="h-12 rounded-[18px]"
+        style={{ backgroundColor: CARD_THEMES[0].buttonBackground, width: '100%', justifyContent: 'center' }}
         onPress={() => router.push(`/course/${data.courseId}` as RelativePathString)}
       >
-        <Text style={{ color: "#3F414E" }}>
+        <Text className="text-[15px] tracking-wide text-center" style={{ color: CARD_THEMES[0].buttonText }}>
           EVALUAR
         </Text>
       </Button>
@@ -78,7 +89,7 @@ function PendingEvalCard({ data }: { data: PendingEvalData }) {
   );
 }
 
-function CourseCard({ course, theme, pendingCount }: { course: Course; theme: typeof CARD_THEMES[number]; pendingCount: number }) {
+function CourseCard({ course, theme, pendingCount }: { course: Course; theme: CourseCardTheme; pendingCount: number }) {
   const router = useRouter();
   const statusText = pendingCount === 0
     ? "Todos han Sido Calificados"
@@ -86,37 +97,29 @@ function CourseCard({ course, theme, pendingCount }: { course: Course; theme: ty
 
   return (
     <View
-      className="flex-1 rounded-[20px] p-4 overflow-hidden justify-between min-h-[210px]"
+      className="min-h-[188px] flex-1 justify-between overflow-hidden rounded-[20px] px-4 py-5"
       style={{
-        backgroundColor: "#8E97FD",
+        backgroundColor: theme.background,
       }}
     >
-      {/* Decorative blob */}
-      <View className="absolute top-0 right-0 opacity-70">
+      <View className="absolute right-[-10px] top-[-12px] opacity-90">
         <SvgXml
           xml={theme.svg}
-          width={110}
-          height={110}
-          style={{
-            position: "absolute",
-            top: -10,
-            right: -10,
-          }}
+          width={100}
+          height={100}
         />
       </View>
 
       <View className="mt-auto">
         <Text
           className="text-[20px] font-semibold leading-6"
-          style={{ color: "#F7E8D0" }}
+          style={{ color: theme.text }}
         >
           {course.name}
         </Text>
         <Text
-          className="text-[12px] mb-3 leading-[16px]"
-          style={{
-            color: "#FFECCC",
-          }}
+          className="mb-4 mt-1 text-[12px] leading-[16px]"
+          style={{ color: theme.secondaryText }}
         >
           {statusText}
         </Text>
@@ -124,18 +127,14 @@ function CourseCard({ course, theme, pendingCount }: { course: Course; theme: ty
 
         <Button
           size="sm"
-          className="rounded-full w-fit px-5 ml-auto mt-3 bg-[#EBEAEC] hover:bg-[#EBEAEC]/90"
+          className="ml-auto mt-2 h-11 rounded-full px-5"
+          style={{ backgroundColor: theme.buttonBackground }}
           onPress={() =>
             router.push(`/course/${course._id}` as RelativePathString)
           }
           disabled={pendingCount === 0}
         >
-          <Text
-            className="text-xs"
-            style={{
-              color: "#3F414E",
-            }}
-          >
+          <Text className="text-[13px] tracking-wide" style={{ color: theme.buttonText }}>
             COMIENZA
           </Text>
         </Button>
@@ -157,45 +156,43 @@ export default function CoursesScreen() {
     return map;
   }, [pendingEvaluations]);
 
+  // Use the full set of card themes so the grid alternates correctly
+  const courseThemes = CARD_THEMES;
+  const getCourseTheme = (index: number) => courseThemes[index % courseThemes.length];
+
   return (
     <View className="flex-1 bg-white">
-      <View className="flex-1 w-full max-w-[980px] mx-auto">
+
+      <Text className="text-lg p-10 text-center text-gray-400 tracking-wide">UniMejores</Text>
+      <View className="w-full max-w-lg mx-auto flex-1 px-4">
+        <Text variant="h1" className="text-gray-800 text-center">
+          ¿Con que materia quieres empezar?
+        </Text>
+        <Text className="italic text-gray-400 mt-2 mb-6 text-center">
+          Elije la que te guste mas.
+        </Text>
+        {pendingLoading ? (
+          <View className="mb-5 items-center">
+            <ActivityIndicator color="#818CF8" />
+          </View>
+        ) : featuredEval ? (
+          <PendingEvalCard data={featuredEval} />
+        ) : null}
+        {error ? (
+          <Pressable onPress={refreshCourses} className="mb-3">
+            <Text className="text-red-500 text-center">{error}</Text>
+            <Text className="text-[#818CF8] text-center mt-1">Reintentar</Text>
+          </Pressable>
+        ) : null}
         <FlatList
           data={courses}
           keyExtractor={(item) => item._id}
           numColumns={2}
-          columnWrapperStyle={{ gap: 12 }}
-          contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 12 }}
+          columnWrapperStyle={{ gap: 16 }}
+          contentContainerStyle={{ gap: 16 }}
           showsVerticalScrollIndicator={false}
           onRefresh={refreshCourses}
           refreshing={isLoading}
-          ListHeaderComponent={
-            <View>
-              <Text className="text-lg p-10 text-center text-gray-400 tracking-wide">UniMejores</Text>
-
-              <Text className="text-[26px] font-bold text-[#1E1E2E] mb-1.5">
-                Con que materia{"\n"}quieres empezar?
-              </Text>
-              <Text className="text-[14px] text-gray-400 italic mb-5">
-                Elije la que te guste mas.
-              </Text>
-
-              {pendingLoading ? (
-                <View className="items-center mb-5">
-                  <ActivityIndicator color="#818CF8" />
-                </View>
-              ) : featuredEval ? (
-                <PendingEvalCard data={featuredEval} />
-              ) : null}
-
-              {error ? (
-                <Pressable onPress={refreshCourses} className="mb-3">
-                  <Text className="text-red-500 text-center">{error}</Text>
-                  <Text className="text-[#818CF8] text-center mt-1">Reintentar</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          }
           ListEmptyComponent={
             !isLoading ? (
               <View className="items-center pt-8">
@@ -206,7 +203,7 @@ export default function CoursesScreen() {
           renderItem={({ item, index }) => (
             <CourseCard
               course={item}
-              theme={CARD_THEMES[index % 2]}
+              theme={getCourseTheme(index)}
               pendingCount={pendingCountByCourse[item._id] ?? 0}
             />
           )}
