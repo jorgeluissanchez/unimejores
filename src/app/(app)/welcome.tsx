@@ -34,9 +34,7 @@ export default function StudentWelcomeScreen() {
       <View className="w-full max-w-md mx-auto">
 
       {/* Logo */}
-      <Text className="text-white text-center tracking-[4px] mt-16">
-        UniMejores
-      </Text>
+            <Text className="text-lg p-10 text-center text-gray-400 tracking-wide text-white">UniMejores</Text>
 
       {/* Content */}
       <View className="flex-1 items-center px-8 pt-10">
