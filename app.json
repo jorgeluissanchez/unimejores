@@ -35,6 +35,44 @@
           }
         }
       ]
+      ,
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Cal_Sans/CalSans-Regular.ttf",
+            "./assets/fonts/ABeeZee/ABeeZee-Regular.ttf",
+            "./assets/fonts/ABeeZee/ABeeZee-Italic.ttf"
+          ],
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Cal Sans",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/Cal_Sans/CalSans-Regular.ttf",
+                    "weight": 400
+                  }
+                ]
+              },
+              {
+                "fontFamily": "ABeeZee",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/ABeeZee/ABeeZee-Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/ABeeZee/ABeeZee-Italic.ttf",
+                    "weight": 400,
+                    "style": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
