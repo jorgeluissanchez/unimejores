@@ -1,3 +1,5 @@
+import { CARD_ORANGE_SVG } from "@/assets/svgs/cardOrange";
+import { CARD_PURPLE_SVG } from "@/assets/svgs/cardPurple";
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { Course, PendingEvalData } from "@/features/courses/domain/entities/course";
@@ -10,24 +12,25 @@ import {
   Pressable,
   View
 } from "react-native";
+import { SvgXml } from "react-native-svg";
 
 const CARD_COLORS = ["#818CF8", "#F59E0B", "#34D399", "#F472B6", "#60A5FA", "#A78BFA"];
 const CARD_THEMES = [
   {
     background: "#8E97FD",
-    blob: "#808AFF",
     button: "#EBEAEC",
     buttonText: "#3F414E",
     text: "#F7E8D0",
     secondaryText: "#FFECCC",
+    svg: CARD_PURPLE_SVG,
   },
   {
     background: "#8E97FD",
-    blob: "#808AFF",
     button: "#EBEAEC",
     buttonText: "#3F414E",
     text: "#F7E8D0",
     secondaryText: "#FFECCC",
+    svg: CARD_ORANGE_SVG,
   },
 ];
 
@@ -55,9 +58,9 @@ function PendingEvalCard({ data }: { data: PendingEvalData }) {
         <Text className="text-[18px] font-bold flex-1" style={{ color: "#F7E8D0" }}>
           {data.courseName}
         </Text>
-          <Text className="text-[12px] mt-1" style={{ color: "#FFECCC" }}>
-            {formatTimeUntil(data.evaluationEndDate)}
-          </Text>
+        <Text className="text-[12px] mt-1" style={{ color: "#FFECCC" }}>
+          {formatTimeUntil(data.evaluationEndDate)}
+        </Text>
       </View>
 
       <Text className="text-[12px] mt-1 mb-4" style={{ color: "#FFECCC" }}>
@@ -89,12 +92,18 @@ function CourseCard({ course, theme, pendingCount }: { course: Course; theme: ty
       }}
     >
       {/* Decorative blob */}
-      <View
-        className="absolute top-2 right-[-10px] w-[90px] h-[90px] rounded-full opacity-40"
-        style={{
-          backgroundColor: "#545ecb",
-        }}
-      />
+      <View className="absolute top-0 right-0 opacity-70">
+        <SvgXml
+          xml={theme.svg}
+          width={110}
+          height={110}
+          style={{
+            position: "absolute",
+            top: -10,
+            right: -10,
+          }}
+        />
+      </View>
 
       <View className="mt-auto">
         <Text
@@ -162,7 +171,7 @@ export default function CoursesScreen() {
           refreshing={isLoading}
           ListHeaderComponent={
             <View>
-                  <Text className="text-lg p-10 text-center text-gray-400 tracking-wide">UniMejores</Text>
+              <Text className="text-lg p-10 text-center text-gray-400 tracking-wide">UniMejores</Text>
 
               <Text className="text-[26px] font-bold text-[#1E1E2E] mb-1.5">
                 Con que materia{"\n"}quieres empezar?
