@@ -31,7 +31,7 @@ export default function LoginScreen() {
         </Button>
         {/* Title */}
         <View className="px-6 pt-7 pb-8">
-          <Text className="text-[30px] font-bold text-[#1E1E2E] text-center">
+          <Text variant="h2" className="text-center">
             Bienvenido de vuelta
           </Text>
         </View>
