@@ -75,10 +75,10 @@ const buttonTextVariants = cva(
         ),
       },
       size: {
-        default: 'text-sm',
-        sm: 'text-xs',
-        lg: 'text-base',
-        icon: 'text-sm',
+        default: '',
+        sm: '',
+        lg: '',
+        icon: '',
       },
     },
     defaultVariants: {
