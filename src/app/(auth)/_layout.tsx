@@ -11,7 +11,7 @@ export default function AuthLayout() {
   }
 
   if (isLoggedIn) {
-    return <Redirect href={"/home" as RelativePathString} />;
+    return <Redirect href={"/welcome" as RelativePathString} />;
   }
 
   return <Stack screenOptions={{ headerShown: false }} />;
