@@ -22,7 +22,7 @@ const { width } = Dimensions.get("window");
       {width < 450 && <SvgXml width={width} height={width / 4} xml={BG_SVG} className="translate-y-5" /> }
       <View className="relative bg-white flex-1 px-8 pt-6 pb-12 gap-5 items-center justify-center">
         <View className="gap-2 w-full max-w-lg">
-          <Text className="text-3xl text-gray-800 text-center">
+          <Text variant="h2" className="text-center">
             Califica a tu compañero
           </Text>
           <Text className="text-gray-400 text-center italic">
