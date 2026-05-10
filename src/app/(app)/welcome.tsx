@@ -34,29 +34,29 @@ export default function StudentWelcomeScreen() {
       <View className="w-full max-w-md mx-auto">
 
       {/* Logo */}
-            <Text className="text-lg p-10 text-center text-gray-400 tracking-wide">UniMejores</Text>
+            <Text className="text-lg p-10 text-center text-gray-400 text-white">UniMejores</Text>
 
       {/* Content */}
       <View className="flex-1 items-center px-8 pt-10">
 
         {/* Title */}
-        <Text variant="h1" className="text-amber-100 text-center lowercase">
-          Hola {userName}, Comienza a {isProfessor ? "administrar tu aula" : "calificar a tus compañeros"}
+        <Text variant="h1" className="text-amber-100 text-center">
+          {`Hola ${userName}, Comienza a ${isProfessor ? "administrar tu aula" : "calificar a tus compañeros"}`.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
         </Text>
 
         {/* Subtitle */}
         <Text className="text-gray-200 text-center mt-6 text-[16px] leading-7 italic">
           {isProfessor
-            ? "Es hora de que mires como los\nfeed back cambian tu aula."
-            : "Es hora de que tus feed back\ncambien tu aula."}
+            ? "Es hora de que mires como los feed back cambian tu aula."
+            : "Es hora de que tus feed back cambien tu aula."}
         </Text>
 
         {/* SVG */}
         <View className="mt-8 items-center justify-center flex-1">
           <SvgXml
             xml={WELCOME_SVG}
-            width={width > 450 ? 400 : width}
-            height={width > 450 ? 300 : (width * 300) / 400}
+            width={width < 400 ? width - 80 : 350}
+            height={width < 400 ? width - 80 : 350}
           />
         </View>
       </View>
