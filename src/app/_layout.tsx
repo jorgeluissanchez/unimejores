@@ -1,5 +1,5 @@
 import ToastProvider from '@/core/components/ui/toast';
-import { DIProvider } from '@/core/di/di-provider';
+import { DIProvider } from '@/core/di/di-Provider';
 import { useTheme } from '@/core/hooks/use-theme';
 import { AuthProvider } from '@/features/auth/presentation/context/auth-context';
 import "@/global.css";

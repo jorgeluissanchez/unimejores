@@ -1,5 +1,5 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-provider";
+import { useDI } from "@/core/di/di-Provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import {
   Course,
