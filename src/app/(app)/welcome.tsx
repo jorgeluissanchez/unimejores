@@ -18,7 +18,7 @@ export default function StudentWelcomeScreen() {
 
   const { loggedUser } = useAuth();
 
-  const { width, height } = Dimensions.get("window");
+  const { width } = Dimensions.get("window");
 
   const isProfessor =
     loggedUser?.role === "professor";
@@ -31,6 +31,7 @@ export default function StudentWelcomeScreen() {
 
   return (
     <View className="flex-1 bg-indigo-400">
+      <View className="w-full max-w-md mx-auto">
 
       {/* Logo */}
       <Text className="text-white text-center tracking-[4px] mt-16">
@@ -41,24 +42,8 @@ export default function StudentWelcomeScreen() {
       <View className="flex-1 items-center px-8 pt-10">
 
         {/* Title */}
-        <Text className="text-amber-100 text-center text-[32px] leading-[40px] font-semibold">
-          Hola {userName},{"\n"}
-
-          {isProfessor ? (
-            <>
-              Comienza{"\n"}
-              <Text className="italic">
-                a Administrar
-              </Text>
-            </>
-          ) : (
-            <>
-              Comienza{"\n"}
-              <Text className="italic">
-                a Calificar
-              </Text>
-            </>
-          )}
+        <Text variant="h1" className="text-amber-100 text-center lowercase">
+          Hola {userName}, Comienza a {isProfessor ? "administrar tu aula" : "calificar a tus compañeros"}
         </Text>
 
         {/* Subtitle */}
@@ -72,8 +57,8 @@ export default function StudentWelcomeScreen() {
         <View className="mt-8 items-center justify-center flex-1">
           <SvgXml
             xml={WELCOME_SVG}
-            width={Math.min(width * 0.82, 320)}
-            height={Math.min(width * 1.05, 420)}
+            width={width > 450 ? 400 : width}
+            height={width > 450 ? 300 : (width * 300) / 400}
           />
         </View>
       </View>
@@ -81,15 +66,17 @@ export default function StudentWelcomeScreen() {
       {/* Bottom Button */}
       <View className="px-6 pb-8 pt-4">
         <Button
-          className="h-16 rounded-full bg-gray-200"
+          variant="ghost"
+          className="h-16 rounded-full w-full bg-gray-100"
           onPress={() =>
             router.replace("/home" as RelativePathString)
           }
         >
-          <Text className="text-zinc-100 tracking-[2px] font-semibold">
+          <Text className="text-gray-800 text-lg">
             COMIENZA YA
           </Text>
         </Button>
+      </View>
       </View>
     </View>
   );

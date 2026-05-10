@@ -6,7 +6,7 @@ import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Textarea } from "@/core/components/ui/textarea";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category } from "@/features/professor/domain/entities/professor";
 import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";

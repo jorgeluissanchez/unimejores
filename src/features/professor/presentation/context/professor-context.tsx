@@ -1,11 +1,11 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import {
-  Course,
-  Criterium,
-  NewCourse,
-  NewCriterium,
+    Course,
+    Criterium,
+    NewCourse,
+    NewCriterium,
 } from "@/features/professor/domain/entities/professor";
 import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";

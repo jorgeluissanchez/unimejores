@@ -1,22 +1,22 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 import { CriteriumScoreCard } from "@/features/evaluation/presentation/components/criterium-score-card";
 import {
-  EvaluationProvider,
-  useEvaluation,
+    EvaluationProvider,
+    useEvaluation,
 } from "@/features/evaluation/presentation/context/evaluation-context";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  ScrollView,
-  View
+    ActivityIndicator,
+    ScrollView,
+    View
 } from "react-native";
 
 function ProgressDot({ state, index }: { state: "done" | "current" | "pending"; index: number }) {

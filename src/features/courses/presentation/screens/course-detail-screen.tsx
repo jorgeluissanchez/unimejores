@@ -2,7 +2,7 @@ import { Button } from "@/core/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category, CourseUser, Group } from "@/features/courses/domain/entities/course";
@@ -14,10 +14,10 @@ import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router
 import { ArrowLeft, Play } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  View
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    View
 } from "react-native";
 
 type CategoryState = {

@@ -1,7 +1,7 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";

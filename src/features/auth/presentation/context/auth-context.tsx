@@ -1,5 +1,5 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthUser } from "@/features/auth/domain/entities/auth-user";
 import { AuthRepository } from "@/features/auth/domain/repositories/auth-repository";

@@ -4,7 +4,7 @@ import { Input } from "@/core/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { StudentEnrollment } from "@/features/professor/domain/entities/professor";
 import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";

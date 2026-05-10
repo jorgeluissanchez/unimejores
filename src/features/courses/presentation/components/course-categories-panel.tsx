@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { Text } from "@/core/components/ui/text";
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category, CourseUser, Group } from "@/features/courses/domain/entities/course";

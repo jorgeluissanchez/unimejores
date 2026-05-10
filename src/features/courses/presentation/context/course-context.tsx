@@ -1,5 +1,5 @@
 import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-Provider";
+import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Course, PendingEvalData } from "@/features/courses/domain/entities/course";
