@@ -113,7 +113,7 @@ export default function CourseDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Decorative header */}
-        <View className="h-60 relative w-full">
+        <View className="h-60 relative w-full overflow-hidden rounded-b-lg mb-4">
           <SvgXml xml={COURSE_DETAIL_SVG} width={width} height={width} className="absolute bottom-0 left-0 " />
           <Button
             onPress={() => router.replace("/home")}
@@ -126,14 +126,19 @@ export default function CourseDetailScreen() {
 
         {/* Course info */}
         <View className="px-5 pt-5">
-          <Text className="text-[26px] font-bold text-[#1E1E2E]">
+          <Text variant="h2">
             {course?.name ?? "Curso"}
           </Text>
-          {myAvgScore !== null && (
-            <Text variant="muted" className="mt-1">
+          {myAvgScore !== null ? (
+            <Text variant="muted">
               Tu promedio es de {myAvgScore}
             </Text>
-          )}
+          ) : (
+            <Text variant="muted">
+              Aún no has recibido calificaciones
+            </Text>
+          )
+          }
           {!!course?.description && (
             <Text className="text-sm text-gray-400 italic mt-3 leading-5">
               {course.description}
