@@ -152,18 +152,6 @@ function EvaluationContent() {
             </Text>
           )}
         </View>
-
-        <View className="flex-row gap-1.5">
-          {peers.map((p, idx) => {
-            const state =
-              p.user.user_id === evaluateeId
-                ? "current"
-                : p.evaluated
-                ? "done"
-                : "pending";
-            return <ProgressDot key={p.user.user_id} state={state} index={idx} />;
-          })}
-        </View>
       </View>
 
       {/* Criteria list */}

@@ -7,7 +7,6 @@ const SCORES = [0, 1, 2, 3, 4, 5];
 
 function scoreColor(score: number): string {
   if (score <= 1) return "#F59E0B";
-  if (score === 2) return "#9CA3AF";
   return "#1E1E2E";
 }
 

@@ -207,7 +207,7 @@ export default function CourseDetailScreen() {
           </View>
         ) : (
           <View className="px-5 pb-10 gap-1">
-            {activePeers.map((peer) => (
+            {[...activePeers].sort((a, b) => (a.evaluated ? 1 : -1)).map((peer) => (
               <Pressable
                 key={peer.user.user_id}
                 onPress={() => {
@@ -229,8 +229,8 @@ export default function CourseDetailScreen() {
                 >
                   <Play
                     size={16}
-                    color={peer.evaluated ? "#9CA3AF" : "#FFFFFF"}
-                    fill={peer.evaluated ? "transparent" : "#FFFFFF"}
+                    color={peer.evaluated ? "#D1D5DB" : "#FFFFFF"}
+                    fill={peer.evaluated ? "#D1D5DB" : "#FFFFFF"}
                   />
                 </View>
                 <View className="flex-1">
