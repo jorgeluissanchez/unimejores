@@ -38,7 +38,7 @@ export function CriteriumScoreCard({ criterium, selected, onSelect }: Props) {
             <Pressable
               key={score}
               onPress={() => onSelect(score)}
-              className="flex-1 aspect-square rounded-full items-center justify-center"
+              className="flex-1 aspect-square rounded-full items-center justify-center max-w-[60px]"
               style={{
                 borderWidth: 1.5,
                 borderColor: isSelected ? scoreColor(score) : "#E5E7EB",

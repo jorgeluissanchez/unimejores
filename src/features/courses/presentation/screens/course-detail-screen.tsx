@@ -2,271 +2,143 @@ import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { Text } from "@/core/components/ui/text";
-import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-provider";
-import { isSessionExpiredError } from "@/core/lib/utils";
-import { useAuth } from "@/features/auth/presentation/context/auth-context";
-import { Category, CourseUser, Group } from "@/features/courses/domain/entities/course";
-import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
-import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
-import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
+import { useCourseDetail } from "@/features/courses/presentation/context/course-detail-context";
+import { PeerListItem } from "@/features/courses/presentation/components/peer-list-item";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Play } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView, useWindowDimensions, View
-} from "react-native";
+import { ArrowLeft } from "lucide-react-native";
+import React, { useMemo } from "react";
+import { ActivityIndicator, ScrollView, useWindowDimensions, View } from "react-native";
 import { SvgXml } from "react-native-svg";
-
-type CategoryState = {
-  category: Category;
-  group: Group | null;
-  members: CourseUser[];
-};
-
-type PeerStatus = {
-  user: CourseUser;
-  evaluated: boolean;
-  avgScore: number | null;
-};
 
 export default function CourseDetailScreen() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const router = useRouter();
-  const di = useDI();
-  const { loggedUser, expireSession } = useAuth();
+  const { width } = useWindowDimensions();
   const { courses } = useCourses();
-  const courseRepo = useMemo(() => di.resolve<CourseRepository>(TOKENS.CourseRepo), [di]);
-  const evalRepo = useMemo(() => di.resolve<EvaluationRepository>(TOKENS.EvaluationRepo), [di]);
+  const {
+    categoryStates,
+    activeId,
+    setActiveId,
+    activeCat,
+    activePeers,
+    myAvgScore,
+    isLoading,
+    error,
+    reload,
+  } = useCourseDetail();
 
   const course = useMemo(() => courses.find((c) => c._id === courseId), [courses, courseId]);
-
-  const [categoryStates, setCategoryStates] = useState<CategoryState[]>([]);
-  const [activeId, setActiveId] = useState<string>("");
-  const [peersByCategory, setPeersByCategory] = useState<Record<string, PeerStatus[]>>({});
-  const [myAvgScore, setMyAvgScore] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = async () => {
-    if (!courseId || !loggedUser?.userId) return;
-    try {
-      setIsLoading(true);
-      setError(null);
-      const categories = await courseRepo.getCategoriesByCourse(courseId);
-      const states = await Promise.all(
-        categories.map(async (cat) => {
-          const group = await courseRepo.getGroupByCategory(cat._id, loggedUser.userId);
-          let members: CourseUser[] = [];
-          if (group) {
-            const ugs = await courseRepo.getMembersByGroup(group._id);
-            const details = await Promise.all(ugs.map((ug) => courseRepo.getUserById(ug.user_id)));
-            members = details.filter(Boolean) as CourseUser[];
-          }
-          return { category: cat, group, members };
-        })
-      );
-      setCategoryStates(states);
-      setActiveId((prev) => prev || states[0]?.category._id);
-
-      const allReceivedScores: ResultEvaluation[] = [];
-      const peersMap: Record<string, PeerStatus[]> = {};
-
-      await Promise.all(
-        states.map(async (cs) => {
-          if (!cs.group) return;
-          const [givenResults, receivedResults] = await Promise.all([
-            evalRepo.getResultsByEvaluatorInGroup(cs.group._id, loggedUser.userId),
-            evalRepo.getResultsForEvaluatedInGroup(cs.group._id, loggedUser.userId),
-          ]);
-          allReceivedScores.push(...receivedResults);
-          const evaluatedIds = new Set(givenResults.map((r) => r.evaluated_id));
-          peersMap[cs.category._id] = cs.members
-            .filter((m) => m.user_id !== loggedUser.userId)
-            .map((m) => {
-              const peerScores = givenResults.filter((r) => r.evaluated_id === m.user_id);
-                return {
-                  user: m,
-                  evaluated: evaluatedIds.has(m.user_id),
-                  avgScore:
-                    peerScores.length === 0
-                      ? null
-                      : Math.round(
-                          (peerScores.reduce((total, result) => total + parseFloat(result.score), 0) /
-                            peerScores.length) *
-                            10
-                        ) / 10,
-                };
-            });
-        })
-      );
-
-      setPeersByCategory(peersMap);
-        setMyAvgScore(
-          allReceivedScores.length === 0
-            ? null
-            : Math.round(
-                (allReceivedScores.reduce((total, result) => total + parseFloat(result.score), 0) /
-                  allReceivedScores.length) *
-                  10
-              ) / 10
-        );
-    } catch (e) {
-      if (isSessionExpiredError(e)) { await expireSession(); return; }
-      setError((e as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, [courseId, loggedUser?.userId]);
-  const { width } = useWindowDimensions();
-  const activeCat = categoryStates.find((cs) => cs.category._id === activeId);
-  const activePeers = activeCat ? (peersByCategory[activeCat.category._id] ?? []) : [];
 
   return (
     <View className="flex-1 bg-white">
       <View className="flex-1 w-full max-w-lg self-center">
         <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Decorative header */}
-        <View className="h-60 relative w-full overflow-hidden rounded-b-lg mb-4">
-          <SvgXml xml={COURSE_DETAIL_SVG} width={width > 400 ? 700 : width} height={width > 400 ? 700 : width} className="absolute bottom-0 left-0 " />
-          <Button
-            onPress={() => router.replace("/home")}
-            className="rounded-full w-[50px] h-[50px] p-6 absolute left-5 top-[52px] items-center justify-center"
-            style={{ backgroundColor: "#E6E7F2" }}
-          >
-            <ArrowLeft color="#1F265E" height={20} width={20} />
-          </Button>
-        </View>
 
-        {/* Course info */}
-        <View className="px-5 pt-5">
-          <Text variant="h2">
-            {course?.name ?? "Curso"}
-          </Text>
-          {myAvgScore !== null ? (
-            <Text variant="muted">
-              Tu promedio es de {myAvgScore}
-            </Text>
-          ) : (
-            <Text variant="muted">
-              Aún no has recibido calificaciones
-            </Text>
-          )
-          }
-          {!!course?.description && (
-            <Text className="text-sm text-gray-400 italic mt-3 leading-5">
-              {course.description}
-            </Text>
-          )}
-        </View>
-
-        {/* Section title */}
-        <View className="px-5 pt-6 pb-3">
-          <Text className="text-lg font-bold text-[#1E1E2E]">Calificalos a todos</Text>
-        </View>
-
-        {/* Category tabs */}
-        {categoryStates.length > 0 && (
-          <Tabs value={activeId} onValueChange={setActiveId} className="mb-3">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20 }}
+          {/* Header decorativo */}
+          <View className="h-60 relative w-full overflow-hidden rounded-b-lg mb-4">
+            <SvgXml
+              xml={COURSE_DETAIL_SVG}
+              width={width > 400 ? 700 : width}
+              height={width > 400 ? 700 : width}
+              className="absolute bottom-0 left-0"
+            />
+            <Button
+              onPress={() => router.replace("/home" as RelativePathString)}
+              className="rounded-full w-[50px] h-[50px] p-6 absolute left-5 top-[52px] items-center justify-center"
+              style={{ backgroundColor: "#E6E7F2" }}
             >
-              <TabsList className="bg-transparent h-auto rounded-none p-0 gap-6">
-                {categoryStates.map((cs) => (
-                  <TabsTrigger
-                    key={cs.category._id}
-                    value={cs.category._id}
-                    className="bg-transparent rounded-none px-0 pb-2 h-auto"
-                    style={{
-                      borderBottomWidth: activeId === cs.category._id ? 2 : 0,
-                      borderBottomColor: "#818CF8",
-                    }}
-                  >
-                    <Text
-                      className="text-[13px] font-bold tracking-[0.5px]"
-                      style={{ color: activeId === cs.category._id ? "#818CF8" : "#9CA3AF" }}
-                    >
-                      {cs.category.name.toUpperCase()}
-                    </Text>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </ScrollView>
-          </Tabs>
-        )}
-
-        {/* Peer list */}
-        {isLoading ? (
-          <View className="p-10 items-center">
-            <ActivityIndicator color="#818CF8" size="large" />
-          </View>
-        ) : error ? (
-          <View className="p-5 items-center gap-2">
-            <Text className="text-red-500">{error}</Text>
-            <Button variant="link" onPress={load}>
-              <Text>Reintentar</Text>
+              <ArrowLeft color="#1F265E" height={20} width={20} />
             </Button>
           </View>
-        ) : !activeCat?.group ? (
-          <View className="p-8 items-center">
-            <Text variant="muted" className="text-center">
-              No perteneces a ningún grupo en esta categoría
+
+          {/* Info del curso */}
+          <View className="px-5 pt-5">
+            <Text variant="h2">{course?.name ?? "Curso"}</Text>
+            <Text variant="muted">
+              {myAvgScore !== null
+                ? `Tu promedio es de ${myAvgScore}`
+                : "Aún no has recibido calificaciones"}
             </Text>
+            {!!course?.description && (
+              <Text className="text-sm text-gray-400 italic mt-3 leading-5">
+                {course.description}
+              </Text>
+            )}
           </View>
-        ) : activePeers.length === 0 ? (
-          <View className="p-8 items-center">
-            <Text variant="muted">No hay compañeros en este grupo</Text>
+
+          {/* Título sección */}
+          <View className="px-5 pt-6 pb-3">
+            <Text className="text-lg font-bold text-[#1E1E2E]">Calificalos a todos</Text>
           </View>
-        ) : (
-          <View className="px-5 pb-10 gap-1">
-            {[...activePeers].sort((a, b) => (a.evaluated ? 1 : -1)).map((peer) => (
-              <Pressable
-                key={peer.user.user_id}
-                onPress={() => {
-                  if (!peer.evaluated && activeCat.group) {
-                    router.push(
-                      `/course/${courseId}/group/${activeCat.group._id}/evaluatee/${peer.user.user_id}` as RelativePathString
-                    );
-                  }
-                }}
-                className="flex-row items-center py-3.5 gap-4"
+
+          {/* Tabs de categorías */}
+          {categoryStates.length > 0 && (
+            <Tabs value={activeId} onValueChange={setActiveId} className="mb-3">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
               >
-                <View
-                  className="w-11 h-11 rounded-full items-center justify-center"
-                  style={{
-                    backgroundColor: peer.evaluated ? "transparent" : "#818CF8",
-                    borderWidth: peer.evaluated ? 2 : 0,
-                    borderColor: "#D1D5DB",
-                  }}
-                >
-                  <Play
-                    size={16}
-                    color={peer.evaluated ? "#D1D5DB" : "#FFFFFF"}
-                    fill={peer.evaluated ? "#D1D5DB" : "#FFFFFF"}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-[15px] font-semibold text-[#1E1E2E]">
-                    {peer.user.name}
-                  </Text>
-                  <Text
-                    className="text-xs mt-0.5"
-                    style={{ color: peer.evaluated ? "#9CA3AF" : "#EF4444" }}
-                  >
-                    {peer.evaluated ? `Calificacion en: ${peer.avgScore ?? "—"}` : "SIN CALIFICAR"}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        )}
+                <TabsList className="bg-transparent h-auto rounded-none p-0 gap-6">
+                  {categoryStates.map((cs) => (
+                    <TabsTrigger
+                      key={cs.category._id}
+                      value={cs.category._id}
+                      className="bg-transparent rounded-none px-0 pb-2 h-auto"
+                      style={{
+                        borderBottomWidth: activeId === cs.category._id ? 2 : 0,
+                        borderBottomColor: "#818CF8",
+                      }}
+                    >
+                      <Text
+                        className="text-[13px] font-bold tracking-[0.5px]"
+                        style={{ color: activeId === cs.category._id ? "#818CF8" : "#9CA3AF" }}
+                      >
+                        {cs.category.name.toUpperCase()}
+                      </Text>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </ScrollView>
+            </Tabs>
+          )}
+
+          {/* Lista de compañeros */}
+          {isLoading ? (
+            <View className="p-10 items-center">
+              <ActivityIndicator color="#818CF8" size="large" />
+            </View>
+          ) : error ? (
+            <View className="p-5 items-center gap-2">
+              <Text className="text-red-500">{error}</Text>
+              <Button variant="link" onPress={reload}>
+                <Text>Reintentar</Text>
+              </Button>
+            </View>
+          ) : !activeCat?.group ? (
+            <View className="p-8 items-center">
+              <Text variant="muted" className="text-center">
+                No perteneces a ningún grupo en esta categoría
+              </Text>
+            </View>
+          ) : activePeers.length === 0 ? (
+            <View className="p-8 items-center">
+              <Text variant="muted">No hay compañeros en este grupo</Text>
+            </View>
+          ) : (
+            <View className="px-5 pb-10 gap-1">
+              {activePeers.map((peer) => (
+                <PeerListItem
+                  key={peer.user.user_id}
+                  peer={peer}
+                  courseId={courseId}
+                  groupId={activeCat.group!._id}
+                />
+              ))}
+            </View>
+          )}
+
         </ScrollView>
       </View>
     </View>

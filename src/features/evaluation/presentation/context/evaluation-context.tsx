@@ -3,11 +3,12 @@ import { useDI } from "@/core/di/di-provider";
 import { isSessionExpiredError } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { CourseUser } from "@/features/courses/domain/entities/course";
+import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 import { Criterium, Evaluation, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
-type PeerEvalStatus = {
+export type PeerEvalStatus = {
   user: CourseUser;
   evaluated: boolean;
 };
@@ -18,16 +19,17 @@ type EvaluationContextType = {
   peers: PeerEvalStatus[];
   isLoading: boolean;
   error: string | null;
-  loadEvaluation: (groupId: string, groupMembers: CourseUser[]) => Promise<void>;
+  loadEvaluation: (groupId: string) => Promise<void>;
   submitScores: (groupId: string, evaluatedId: string, scores: Record<string, number>) => Promise<void>;
 };
 
 const EvaluationContext = createContext<EvaluationContextType | undefined>(undefined);
 
-export function EvaluationProvider({ children }: { children: React.ReactNode }) {
+export function EvaluationProvider({ children }: { children: ReactNode }) {
   const di = useDI();
   const { loggedUser, expireSession } = useAuth();
-  const repo = useMemo(() => di.resolve<EvaluationRepository>(TOKENS.EvaluationRepo), [di]);
+  const evalRepo = useMemo(() => di.resolve<EvaluationRepository>(TOKENS.EvaluationRepo), [di]);
+  const courseRepo = useMemo(() => di.resolve<CourseRepository>(TOKENS.CourseRepo), [di]);
 
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [criteria, setCriteria] = useState<Criterium[]>([]);
@@ -35,13 +37,19 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadEvaluation = async (groupId: string, groupMembers: CourseUser[]) => {
+  const loadEvaluation = async (groupId: string) => {
     if (!loggedUser?.userId) return;
     try {
       setIsLoading(true);
       setError(null);
 
-      const eval_ = await repo.getEvaluationByGroup(groupId);
+      const userGroups = await courseRepo.getMembersByGroup(groupId);
+      const details = await Promise.all(
+        userGroups.map((ug) => courseRepo.getUserById(ug.user_id))
+      );
+      const groupMembers = details.filter(Boolean) as CourseUser[];
+
+      const eval_ = await evalRepo.getEvaluationByGroup(groupId);
       setEvaluation(eval_);
 
       if (!eval_) {
@@ -51,8 +59,8 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
       }
 
       const [crit, results] = await Promise.all([
-        repo.getCriteriaByEvaluation(eval_._id),
-        repo.getResultsByEvaluatorInGroup(groupId, loggedUser.userId),
+        evalRepo.getCriteriaByEvaluation(eval_._id),
+        evalRepo.getResultsByEvaluatorInGroup(groupId, loggedUser.userId),
       ]);
 
       setCriteria(crit);
@@ -77,12 +85,16 @@ export function EvaluationProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const submitScores = async (groupId: string, evaluatedId: string, scores: Record<string, number>) => {
+  const submitScores = async (
+    groupId: string,
+    evaluatedId: string,
+    scores: Record<string, number>
+  ) => {
     if (!loggedUser?.userId || !evaluation) return;
     try {
       setIsLoading(true);
       setError(null);
-      await repo.submitEvaluation(groupId, loggedUser.userId, evaluatedId, scores);
+      await evalRepo.submitEvaluation(groupId, loggedUser.userId, evaluatedId, scores);
       setPeers((prev) =>
         prev.map((p) => (p.user.user_id === evaluatedId ? { ...p, evaluated: true } : p))
       );
