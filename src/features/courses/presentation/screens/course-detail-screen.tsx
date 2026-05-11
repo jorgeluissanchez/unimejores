@@ -110,17 +110,17 @@ export default function CourseDetailScreen() {
 
   return (
     <View className="flex-1 bg-white">
-
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <View className="flex-1 w-full max-w-lg self-center">
+        <ScrollView showsVerticalScrollIndicator={false}>
         {/* Decorative header */}
         <View className="h-60 relative w-full overflow-hidden rounded-b-lg mb-4">
-          <SvgXml xml={COURSE_DETAIL_SVG} width={width} height={width} className="absolute bottom-0 left-0 " />
+          <SvgXml xml={COURSE_DETAIL_SVG} width={width > 400 ? 700 : width} height={width > 400 ? 700 : width} className="absolute bottom-0 left-0 " />
           <Button
             onPress={() => router.replace("/home")}
             className="rounded-full w-[50px] h-[50px] p-6 absolute left-5 top-[52px] items-center justify-center"
             style={{ backgroundColor: "#E6E7F2" }}
           >
-            <ArrowLeft color="#1F265E" height={80} width={80} />
+            <ArrowLeft color="#1F265E" height={20} width={20} />
           </Button>
         </View>
 
@@ -248,7 +248,8 @@ export default function CourseDetailScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   );
 }

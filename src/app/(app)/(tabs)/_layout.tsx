@@ -41,13 +41,14 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: isSettingsScreen
-          ? { display: "none" }
+          ? { display: "none",
+              height: 80 }
           : {
               backgroundColor: "#FFFFFF",
               borderTopWidth: 0,
               elevation: 0,
               shadowOpacity: 0,
-              height: 80,
+              height: 110,
               paddingTop: 12,
               boxShadow: "10px 0px 10px rgba(0, 0, 0, 0.1)",
             },

@@ -23,7 +23,7 @@ export default function SignupScreen() {
             className="rounded-full w-[50px] h-[50px] p-6"
             style={{ backgroundColor: "#E6E7F2" }}
           >
-            <ArrowLeft color="#1F265E" height={80} width={80} />
+            <ArrowLeft color="#1F265E" height={20} width={20} />
           </Button>
           <Text variant="h2" className="text-center">
             Porfavor Registrese

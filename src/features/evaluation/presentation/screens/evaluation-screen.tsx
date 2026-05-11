@@ -7,16 +7,16 @@ import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 import { CriteriumScoreCard } from "@/features/evaluation/presentation/components/criterium-score-card";
 import {
-    EvaluationProvider,
-    useEvaluation,
+  EvaluationProvider,
+  useEvaluation,
 } from "@/features/evaluation/presentation/context/evaluation-context";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { Check } from "lucide-react-native";
+import { ArrowLeft, Check } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    View
+  ActivityIndicator,
+  ScrollView,
+  View
 } from "react-native";
 
 function ProgressDot({ state, index }: { state: "done" | "current" | "pending"; index: number }) {
@@ -127,20 +127,24 @@ function EvaluationContent() {
 
   return (
     <View className="flex-1 bg-white">
-
-      {/* Header */}
-      <View className="flex-row items-center px-5 pt-[52px] pb-4 gap-3">
+      <View className="flex-1 w-full max-w-lg self-center">
+        {/* Header */}
+        <View className="flex-row items-center px-5 pt-[52px] pb-4 gap-3">
         <Button
           variant="ghost"
           size="icon"
           onPress={() => router.replace(`/course/${courseId}` as RelativePathString)}
           className="rounded-full bg-white/30"
         >
-          <Check className="text-gray-800 w-5 h-5" />
+          <ArrowLeft className="text-gray-800 w-5 h-5" />
         </Button>
         <View className="flex-1">
           <Text className="text-base font-bold text-[#1E1E2E]">
-            Evaluando a {peer.name}
+            Evaluando a {peer.name
+              .toLowerCase()
+              .split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
           </Text>
           {evaluation && (
             <Text className="text-xs text-gray-400 mt-0.5">
@@ -188,13 +192,14 @@ function EvaluationContent() {
         <Button
           onPress={handleSubmit}
           disabled={!allAnswered || submitting}
-          className="rounded-full py-[18px] items-center"
+          className="rounded-full py-[18px] items-center mb-6"
           style={{ backgroundColor: allAnswered ? "#818CF8" : "#C7D2FE" }}
         >
-          <Text className="text-white text-sm font-bold tracking-[1.5px]">
+          <Text className="text-white text-sm ">
             {submitting ? "GUARDANDO..." : hasNext ? "SIGUIENTE COMPAÑEROS" : "TERMINAR"}
           </Text>
         </Button>
+      </View>
       </View>
     </View>
   );

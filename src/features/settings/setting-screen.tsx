@@ -92,7 +92,7 @@ export default function SettingScreen() {
             className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
             style={{ backgroundColor: "#E6E7F2" }}
           >
-            <XIcon color="#1F265E" height={80} width={80} />
+            <XIcon color="#1F265E" height={20} width={20} />
           </Button>
 
           <Text variant="h3" className="flex-1 text-center text-white font-cal text-[18px]">
@@ -106,13 +106,12 @@ export default function SettingScreen() {
             className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
             style={{ backgroundColor: "#E6E7F2" }}
           >
-            <LogOutIcon color="#1F265E" height={80} width={80} />
+            <LogOutIcon color="#1F265E" height={20} width={20} />
           </Button>
         </View>
       </View>
-
       <View className="my-auto flex w-full items-center justify-center max-w-lg mx-auto px-4">
-        <Text variant="h1" className="text-white leading-tight">
+        <Text variant="h1" className="text-white text-center leading-tight">
           {displayName}
         </Text>
         <Text className="mt-3 text-[#E6E7F2]/70">

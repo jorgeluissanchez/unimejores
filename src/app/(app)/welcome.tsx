@@ -20,8 +20,7 @@ export default function StudentWelcomeScreen() {
 
   const { width } = Dimensions.get("window");
 
-  const isProfessor =
-    loggedUser?.role === "professor";
+  const isProfessor = loggedUser?.role === "professor";
 
   const userName = useMemo(() => {
     if (!loggedUser?.name) return "Usuario";
@@ -31,41 +30,32 @@ export default function StudentWelcomeScreen() {
 
   return (
     <View className="flex-1 bg-indigo-400">
-      <View className="w-full max-w-md mx-auto">
+      <View className="flex-1 w-full max-w-lg self-center px-6 pt-10 pb-8 justify-between">
+        <Text className="text-lg text-center text-white">UniMejores</Text>
 
-      {/* Logo */}
-            <Text className="text-lg p-10 text-center text-gray-400 text-white">UniMejores</Text>
+        <View className="items-center">
+          <Text variant="h1" className="text-amber-100 text-center">
+            {`Hola ${userName}, Comienza a ${isProfessor ? "administrar tu aula" : "calificar a tus compañeros"}`
+              .toLowerCase()
+              .split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
+          </Text>
 
-      {/* Content */}
-      <View className="flex-1 items-center px-8 pt-10">
+          <Text className="text-gray-200 text-center mt-6 text-[16px] leading-7 italic">
+            {isProfessor
+              ? "Es hora de que mires como los feed back cambian tu aula."
+              : "Es hora de que tus feed back cambien tu aula."}
+          </Text>
 
-        {/* Title */}
-        <Text variant="h1" className="text-amber-100 text-center">
-          {`Hola ${userName}, Comienza a ${isProfessor ? "administrar tu aula" : "calificar a tus compañeros"}`.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-        </Text>
-
-        {/* Subtitle */}
-        <Text className="text-gray-200 text-center mt-6 text-[16px] leading-7 italic">
-          {isProfessor
-            ? "Es hora de que mires como los feed back cambian tu aula."
-            : "Es hora de que tus feed back cambien tu aula."}
-        </Text>
-
-        {/* SVG */}
-        <View className="mt-8 items-center justify-center flex-1">
-          <SvgXml
-            xml={WELCOME_SVG}
-            width={width < 400 ? width - 80 : 350}
-            height={width < 400 ? width - 80 : 350}
-          />
+          <View className="mt-8 items-center justify-center">
+            <SvgXml xml={WELCOME_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
+          </View>
         </View>
-      </View>
 
-      {/* Bottom Button */}
-      <View className="px-6 pb-8 pt-4">
         <Button
           variant="ghost"
-          className="h-16 rounded-full w-full bg-gray-100"
+          className="h-16 mb-8 rounded-full w-full bg-gray-100"
           onPress={() =>
             router.replace("/home" as RelativePathString)
           }
@@ -74,7 +64,6 @@ export default function StudentWelcomeScreen() {
             COMIENZA YA
           </Text>
         </Button>
-      </View>
       </View>
     </View>
   );

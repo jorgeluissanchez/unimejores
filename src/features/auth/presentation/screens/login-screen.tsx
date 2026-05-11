@@ -23,7 +23,7 @@ export default function LoginScreen() {
             className="rounded-full w-[50px] h-[50px] p-6"
             style={{ backgroundColor: "#E6E7F2" }}
           >
-            <ArrowLeft color="#1F265E" height={80} width={80} />
+            <ArrowLeft color="#1F265E" height={20} width={20} />
           </Button>
           <Text variant="h2" className="text-center">
             Bienvenido de nuevo
@@ -34,7 +34,7 @@ export default function LoginScreen() {
 
         <Button
           testID="create-account-button"
-          className="px-6 items-center mt-4"
+          className="px-6 items-center my-4"
           variant="link"
           onPress={() => router.push("/signup" as RelativePathString)}
         >
