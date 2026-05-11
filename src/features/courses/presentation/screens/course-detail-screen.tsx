@@ -9,8 +9,8 @@ import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category, CourseUser, Group } from "@/features/courses/domain/entities/course";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
+import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
-import { avg } from "@/features/evaluation/domain/utils";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Play } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -72,7 +72,7 @@ export default function CourseDetailScreen() {
       setCategoryStates(states);
       setActiveId((prev) => prev || states[0]?.category._id);
 
-      const allReceivedScores: any = [];
+      const allReceivedScores: ResultEvaluation[] = [];
       const peersMap: Record<string, PeerStatus[]> = {};
 
       await Promise.all(
@@ -88,13 +88,32 @@ export default function CourseDetailScreen() {
             .filter((m) => m.user_id !== loggedUser.userId)
             .map((m) => {
               const peerScores = givenResults.filter((r) => r.evaluated_id === m.user_id);
-              return { user: m, evaluated: evaluatedIds.has(m.user_id), avgScore: avg(peerScores) };
+                return {
+                  user: m,
+                  evaluated: evaluatedIds.has(m.user_id),
+                  avgScore:
+                    peerScores.length === 0
+                      ? null
+                      : Math.round(
+                          (peerScores.reduce((total, result) => total + parseFloat(result.score), 0) /
+                            peerScores.length) *
+                            10
+                        ) / 10,
+                };
             });
         })
       );
 
       setPeersByCategory(peersMap);
-      setMyAvgScore(avg(allReceivedScores));
+        setMyAvgScore(
+          allReceivedScores.length === 0
+            ? null
+            : Math.round(
+                (allReceivedScores.reduce((total, result) => total + parseFloat(result.score), 0) /
+                  allReceivedScores.length) *
+                  10
+              ) / 10
+        );
     } catch (e) {
       if (isSessionExpiredError(e)) { await expireSession(); return; }
       setError((e as Error).message);

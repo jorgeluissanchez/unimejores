@@ -12,7 +12,6 @@ import { CourseRepository } from "@/features/courses/domain/repositories/course-
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
-import { avg } from "@/features/evaluation/domain/utils";
 import { useRouter } from "expo-router";
 import { LogOutIcon, XIcon } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -57,7 +56,14 @@ export default function SettingScreen() {
             );
           })
         );
-        setGeneralAvg(avg(allScores));
+        setGeneralAvg(
+          allScores.length === 0
+            ? null
+            : Math.round(
+                (allScores.reduce((total, result) => total + parseFloat(result.score), 0) / allScores.length) *
+                  10
+              ) / 10
+        );
       } catch (e) {
         if (isSessionExpiredError(e)) await expireSession();
       }
