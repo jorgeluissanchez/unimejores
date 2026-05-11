@@ -89,7 +89,7 @@ export default function SettingScreen() {
         <View className="flex-row items-center justify-between">
           <Button
             onPress={() => router.replace("/home")}
-            className="rounded-full w-[50px] h-[50px] items-center justify-center"
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
             style={{ backgroundColor: "#E6E7F2" }}
           >
             <XIcon color="#1F265E" height={80} width={80} />
@@ -103,7 +103,7 @@ export default function SettingScreen() {
             onPress={async () => {
               await logout();
             }}
-            className="rounded-full w-[50px] h-[50px] items-center justify-center"
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
             style={{ backgroundColor: "#E6E7F2" }}
           >
             <LogOutIcon color="#1F265E" height={80} width={80} />

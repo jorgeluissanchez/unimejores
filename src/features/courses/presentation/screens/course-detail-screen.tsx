@@ -1,3 +1,4 @@
+import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { Text } from "@/core/components/ui/text";
@@ -14,11 +15,11 @@ import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router
 import { ArrowLeft, Play } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    View
+  ActivityIndicator,
+  Pressable,
+  ScrollView, useWindowDimensions, View
 } from "react-native";
+import { SvgXml } from "react-native-svg";
 
 type CategoryState = {
   category: Category;
@@ -103,7 +104,7 @@ export default function CourseDetailScreen() {
   };
 
   useEffect(() => { load(); }, [courseId, loggedUser?.userId]);
-
+  const { width } = useWindowDimensions();
   const activeCat = categoryStates.find((cs) => cs.category._id === activeId);
   const activePeers = activeCat ? (peersByCategory[activeCat.category._id] ?? []) : [];
 
@@ -112,21 +113,14 @@ export default function CourseDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Decorative header */}
-        <View style={{ height: 200, backgroundColor: "#3D3B6E", overflow: "hidden" }}>
-
-          <View className="absolute bottom-[-10] left-[-40] w-[160] h-[100] rounded-md bg-[#4A4880]" />
-          <View className="absolute bottom-[10] left-[60] w-[120] h-[80] rounded-full bg-[#4A4880]" />
-          <View className="absolute bottom-[-5] right-[-20] w-[140] h-[90] rounded-full bg-[#4A4880]" />
-          <View className="absolute top-[30] right-[30] w-[60] h-[40] rounded-full bg-[#5B5990]" />
-          <View className="absolute top-[20] right-[80] w-[40] h-[25] rounded-full bg-[#5B5990]" />
-          
+        <View className="h-60 relative w-full">
+          <SvgXml xml={COURSE_DETAIL_SVG} width={width} height={width} className="absolute bottom-0 left-0 " />
           <Button
-            variant="ghost"
-            size="icon"
-            onPress={() => router.replace("/home" as RelativePathString)}
-            className="absolute left-5 top-[52px] rounded-full bg-white/30"
+            onPress={() => router.replace("/home")}
+            className="rounded-full w-[50px] h-[50px] p-6 absolute left-5 top-[52px] items-center justify-center"
+            style={{ backgroundColor: "#E6E7F2" }}
           >
-            <ArrowLeft className="text-gray-800 w-5 h-5" />
+            <ArrowLeft color="#1F265E" height={80} width={80} />
           </Button>
         </View>
 
