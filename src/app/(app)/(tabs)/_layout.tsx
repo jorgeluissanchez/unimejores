@@ -34,6 +34,7 @@ export default function TabsLayout() {
     ? loggedUser.name.split(" ")[0]
     : loggedUser?.email?.split("@")[0] ?? "Perfil";
   const isSettingsScreen = segments.at(-1) === "settings";
+  const isProfessor = loggedUser?.role === "professor";
 
   return (
     <Tabs
@@ -66,6 +67,14 @@ export default function TabsLayout() {
         options={{
           title: "Inicio",
           tabBarIcon: ({ focused }) => <TabIcon name={focused ? "home" : "home-outline"} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: "Reportes",
+          href: isProfessor ? undefined : null,
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? "bar-chart" : "bar-chart-outline"} focused={focused} />,
         }}
       />
       <Tabs.Screen

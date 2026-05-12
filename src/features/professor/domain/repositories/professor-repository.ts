@@ -3,11 +3,15 @@ import {
   Course,
   Criterium,
   EvaluationCriterium,
+  Group,
+  GroupMember,
   NewCategory,
   NewCourse,
   NewCriterium,
+  NewGroup,
   NewProfessorEvaluation,
   ProfessorEvaluation,
+  ResultEvaluation,
   StudentEnrollment,
 } from "../entities/professor";
 
@@ -46,4 +50,17 @@ export interface ProfessorRepository {
   getEvaluationCriteria(evaluationId: string): Promise<EvaluationCriterium[]>;
   addCriteriumToEvaluation(evaluationId: string, criteriumId: string): Promise<void>;
   removeCriteriumFromEvaluation(evaluationCriteriumId: string): Promise<void>;
+
+  // Groups management
+  addGroup(group: NewGroup): Promise<void>;
+  deleteGroup(groupId: string): Promise<void>;
+  getGroupMembersDetail(groupId: string): Promise<GroupMember[]>;
+  addMemberToGroup(userId: string, groupId: string): Promise<void>;
+  removeMemberFromGroup(userGroupId: string): Promise<void>;
+  getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null>;
+
+  // Reports
+  getGroupsByCategory(categoryId: string): Promise<Group[]>;
+  getMembersByGroup(groupId: string): Promise<StudentEnrollment[]>;
+  getResultsByGroup(groupId: string): Promise<ResultEvaluation[]>;
 }

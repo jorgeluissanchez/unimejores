@@ -1,6 +1,6 @@
-import { Category, Course } from "@/features/courses/domain/entities/course";
+import { Category, Course, Group } from "@/features/courses/domain/entities/course";
 
-export type { Course, Category };
+export type { Course, Category, Group };
 
 export type NewCourse = Omit<Course, "_id">;
 export type NewCategory = Omit<Category, "_id">;
@@ -33,6 +33,24 @@ export type EvaluationCriterium = {
 
 export type StudentEnrollment = {
   userCourseId: string;
+  userId: string;
+  name: string;
+  email: string;
+};
+
+export type ResultEvaluation = {
+  _id: string;
+  evaluator_id: string;
+  evaluated_id: string;
+  score: string;
+  group_id: string;
+  criterium_id: string;
+};
+
+export type NewGroup = { name: string; category_id: string };
+
+export type GroupMember = {
+  userGroupId: string;
   userId: string;
   name: string;
   email: string;

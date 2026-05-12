@@ -6,11 +6,15 @@ import {
   Course,
   Criterium,
   EvaluationCriterium,
+  Group,
+  GroupMember,
   NewCategory,
   NewCourse,
   NewCriterium,
+  NewGroup,
   NewProfessorEvaluation,
   ProfessorEvaluation,
+  ResultEvaluation,
   StudentEnrollment,
 } from "../../domain/entities/professor";
 import { ProfessorDataSource } from "./professor-data-source";
@@ -220,5 +224,65 @@ export class ProfessorRemoteDataSourceImpl implements ProfessorDataSource {
 
   async removeCriteriumFromEvaluation(evaluationCriteriumId: string): Promise<void> {
     await this.deleteRecord("evaluation_criterium", evaluationCriteriumId);
+  }
+
+  // ── Groups management ────────────────────────────────────────────────────────
+
+  async addGroup(group: NewGroup): Promise<void> {
+    await this.insertRecord("group", group);
+  }
+
+  async deleteGroup(groupId: string): Promise<void> {
+    await this.deleteRecord("group", groupId);
+  }
+
+  async getGroupMembersDetail(groupId: string): Promise<GroupMember[]> {
+    const userGroups = await this.readTable<{ _id: string; user_id: string }>("user_group", { group_id: groupId });
+    if (userGroups.length === 0) return [];
+    const members = await Promise.all(
+      userGroups.map(async (ug) => {
+        const users = await this.readTable<{ user_id: string; name: string; email: string }>("user", { user_id: ug.user_id });
+        if (!users[0]) return null;
+        return { userGroupId: ug._id, userId: ug.user_id, name: users[0].name, email: users[0].email } as GroupMember;
+      }),
+    );
+    return members.filter(Boolean) as GroupMember[];
+  }
+
+  async addMemberToGroup(userId: string, groupId: string): Promise<void> {
+    await this.insertRecord("user_group", { user_id: userId, group_id: groupId });
+  }
+
+  async removeMemberFromGroup(userGroupId: string): Promise<void> {
+    await this.deleteRecord("user_group", userGroupId);
+  }
+
+  async getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null> {
+    const rows = await this.readTable<{ user_id: string; name: string; email: string }>("user", { email });
+    if (!rows[0]) return null;
+    return { userId: rows[0].user_id, name: rows[0].name, email: rows[0].email };
+  }
+
+  // ── Reports ──────────────────────────────────────────────────────────────────
+
+  async getGroupsByCategory(categoryId: string): Promise<Group[]> {
+    return this.readTable<Group>("group", { category_id: categoryId });
+  }
+
+  async getMembersByGroup(groupId: string): Promise<StudentEnrollment[]> {
+    const userGroups = await this.readTable<{ _id: string; user_id: string }>("user_group", { group_id: groupId });
+    if (userGroups.length === 0) return [];
+    const members = await Promise.all(
+      userGroups.map(async (ug) => {
+        const users = await this.readTable<{ user_id: string; name: string; email: string }>("user", { user_id: ug.user_id });
+        if (!users[0]) return null;
+        return { userCourseId: ug._id, userId: ug.user_id, name: users[0].name, email: users[0].email } as StudentEnrollment;
+      }),
+    );
+    return members.filter(Boolean) as StudentEnrollment[];
+  }
+
+  async getResultsByGroup(groupId: string): Promise<ResultEvaluation[]> {
+    return this.readTable<ResultEvaluation>("result_evaluation", { group_id: groupId });
   }
 }

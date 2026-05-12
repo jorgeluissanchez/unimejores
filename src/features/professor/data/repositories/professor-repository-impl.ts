@@ -3,11 +3,15 @@ import {
   Course,
   Criterium,
   EvaluationCriterium,
+  Group,
+  GroupMember,
   NewCategory,
   NewCourse,
   NewCriterium,
+  NewGroup,
   NewProfessorEvaluation,
   ProfessorEvaluation,
+  ResultEvaluation,
   StudentEnrollment,
 } from "../../domain/entities/professor";
 import { ProfessorRepository } from "../../domain/repositories/professor-repository";
@@ -44,4 +48,15 @@ export class ProfessorRepositoryImpl implements ProfessorRepository {
   getEvaluationCriteria(evaluationId: string): Promise<EvaluationCriterium[]> { return this.ds.getEvaluationCriteria(evaluationId); }
   addCriteriumToEvaluation(evaluationId: string, criteriumId: string): Promise<void> { return this.ds.addCriteriumToEvaluation(evaluationId, criteriumId); }
   removeCriteriumFromEvaluation(evaluationCriteriumId: string): Promise<void> { return this.ds.removeCriteriumFromEvaluation(evaluationCriteriumId); }
+
+  addGroup(group: NewGroup): Promise<void> { return this.ds.addGroup(group); }
+  deleteGroup(groupId: string): Promise<void> { return this.ds.deleteGroup(groupId); }
+  getGroupMembersDetail(groupId: string): Promise<GroupMember[]> { return this.ds.getGroupMembersDetail(groupId); }
+  addMemberToGroup(userId: string, groupId: string): Promise<void> { return this.ds.addMemberToGroup(userId, groupId); }
+  removeMemberFromGroup(userGroupId: string): Promise<void> { return this.ds.removeMemberFromGroup(userGroupId); }
+  getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null> { return this.ds.getUserByEmail(email); }
+
+  getGroupsByCategory(categoryId: string): Promise<Group[]> { return this.ds.getGroupsByCategory(categoryId); }
+  getMembersByGroup(groupId: string): Promise<StudentEnrollment[]> { return this.ds.getMembersByGroup(groupId); }
+  getResultsByGroup(groupId: string): Promise<ResultEvaluation[]> { return this.ds.getResultsByGroup(groupId); }
 }
