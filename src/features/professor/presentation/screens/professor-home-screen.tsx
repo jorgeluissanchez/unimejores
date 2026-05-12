@@ -2,7 +2,6 @@ import { Button } from "@/core/components/ui/button";
 import { Card, CardContent } from "@/core/components/ui/card";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
-import { LogoutButton } from "@/features/auth/presentation/components/logout-button";
 import { CourseCard } from "@/features/courses/presentation/components/course-card";
 import { Course } from "@/features/professor/domain/entities/professor";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,18 +36,14 @@ export function ProfessorHomeScreen() {
 
   return (
     <View className="flex-1 p-4">
-      <View className="mb-4 flex-row items-center gap-2">
-        <Text variant="h3" className="flex-1">Mis Cursos</Text>
+      <View className="mb-6 flex-row items-center justify-between">
+        <Text variant="h1">Mis Cursos</Text>
         <TouchableOpacity
           onPress={() => router.push("/criterios" as RelativePathString)}
           style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }}
         >
           <Ionicons name="list-outline" size={18} color="#374151" />
         </TouchableOpacity>
-        <Button size="sm" onPress={() => setIsAddOpen(true)}>
-          <Text>Agregar</Text>
-        </Button>
-        <LogoutButton />
       </View>
 
       {/* Top course cards (estilo estudiante) */}
@@ -66,11 +61,12 @@ export function ProfessorHomeScreen() {
                   course={item as any}
                   pendingCount={Math.floor(Math.abs(hashCode(item._id)) % 4)}
                   svg={index % 2 === 0 ? CARD_PURPLE_SVG : CARD_ORANGE_SVG}
-                  background={index % 2 === 0 ? "#808AFF" : "#F9D7A6"}
+                  href={`/professor-course/${item._id}` as RelativePathString}
+                  background={index % 2 === 0 ? "#8E97FD" : "#F9D7A6"}
                   textColor={index % 2 === 0 ? "#FFFFFF" : "#1F2937"}
                   secondaryTextColor={index % 2 === 0 ? "#EDEEFF" : "#4B5563"}
                   buttonBackground={index % 2 === 0 ? "#FFFFFF" : "#111827"}
-                  buttonTextColor={index % 2 === 0 ? "#4F46E5" : "#FFFFFF"}
+                  buttonTextColor={index % 2 === 0 ? "#1F2937" : "#FFFFFF"}
                 />
               </View>
             )}
@@ -80,7 +76,7 @@ export function ProfessorHomeScreen() {
 
       {/* Crear nuevo curso grande */}
       <View className="mb-6 items-center">
-        <Button size="lg" className="rounded-full px-6" onPress={() => setIsAddOpen(true)} style={{ backgroundColor: "#7C5CFF" }}>
+        <Button size="lg" className="rounded-full px-6" onPress={() => setIsAddOpen(true)} style={{ backgroundColor: "#8E97FD" }}>
           <Text className="text-white">CREAR UN NUEVO CURSO</Text>
         </Button>
       </View>
@@ -121,7 +117,7 @@ export function ProfessorHomeScreen() {
 
       {/* Analiza el estado de tus evaluaciones */}
       <View className="mt-6">
-        <Text variant="h4" className="mb-3">Analiza el estado de tus evaluaciones</Text>
+        <Text variant="h2" className="mb-3">Analiza el estado de tus evaluaciones</Text>
         <FlatList
           data={myCourses}
           keyExtractor={(c) => `eval-${c._id}`}

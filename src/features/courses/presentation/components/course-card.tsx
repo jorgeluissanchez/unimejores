@@ -10,6 +10,7 @@ type Props = {
   course: Course;
   pendingCount: number;
   svg: string;
+  href?: RelativePathString;
   background: string;
   textColor: string;
   secondaryTextColor: string;
@@ -21,6 +22,7 @@ export function CourseCard({
   course,
   pendingCount,
   svg,
+  href,
   background,
   textColor,
   secondaryTextColor,
@@ -57,7 +59,7 @@ export function CourseCard({
           size="sm"
           className="ml-auto mt-2 h-11 rounded-full px-5"
           style={{ backgroundColor: buttonBackground }}
-          onPress={() => router.push(`/course/${course._id}` as RelativePathString)}
+          onPress={() => router.push((href ?? `/course/${course._id}`) as RelativePathString)}
           disabled={pendingCount === 0}
         >
           <Text className="text-[13px] tracking-wide" style={{ color: buttonTextColor }}>

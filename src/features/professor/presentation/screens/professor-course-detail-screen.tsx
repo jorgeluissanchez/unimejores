@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, Edit } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -115,7 +116,7 @@ export function ProfessorCourseDetailScreen() {
       const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"] });
       if (result.canceled || !result.assets?.[0]) return;
       setIsImporting(true);
-      const content = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      const content = await new FileSystem.File(result.assets[0].uri).text();
       await parseBrightspaceCsv(content, courseId!);
       await load();
       Alert.alert("Importación completa", "Las categorías y grupos se han creado correctamente.");
@@ -190,10 +191,10 @@ export function ProfessorCourseDetailScreen() {
 
           {/* Back button */}
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace("/home" as any)}
             style={{ position: "absolute", left: 20, top: 52, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(230,231,242,0.85)", alignItems: "center", justifyContent: "center" }}
           >
-            <Ionicons name="arrow-back" size={20} color="#1F265E" />
+            <ArrowLeft width={20} height={20} color="#1F265E" />
           </TouchableOpacity>
 
           {/* Edit button */}
@@ -201,7 +202,7 @@ export function ProfessorCourseDetailScreen() {
             onPress={() => {/* future: edit course */ }}
             style={{ position: "absolute", right: 20, top: 52, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(230,231,242,0.85)", alignItems: "center", justifyContent: "center" }}
           >
-            <Ionicons name="create-outline" size={20} color="#1F265E" />
+            <Edit width={20} height={20} color="#1F265E" />
           </TouchableOpacity>
 
           {/* Criteria progress bars */}

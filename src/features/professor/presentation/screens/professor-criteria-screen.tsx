@@ -36,7 +36,7 @@ export function ProfessorCriteriaScreen() {
         {/* Header */}
         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 24 }}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace("/home" as any)}
             style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center", marginRight: 16 }}
           >
             <Ionicons name="arrow-back" size={18} color="#374151" />
