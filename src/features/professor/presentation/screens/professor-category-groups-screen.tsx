@@ -116,7 +116,7 @@ export function ProfessorCategoryGroupsScreen() {
       const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "*/*"] });
       if (result.canceled || !result.assets?.[0]) return;
       setIsImporting(true);
-      const content = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      const content = await new FileSystem.File(result.assets[0].uri).text();
       await parseCategoryGroupsCsv(content);
       await load();
       Alert.alert("Importación completa", "Grupos creados correctamente.");
