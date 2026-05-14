@@ -11,11 +11,15 @@ function Textarea({
   return (
     <TextInput
       className={cn(
-        'text-foreground border-input dark:bg-input/30 flex min-h-16 w-full flex-row rounded-md border bg-transparent px-3 py-2 text-base shadow-sm shadow-black/5 md:text-sm',
-        Platform.select({
-          web: 'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive field-sizing-content resize-y outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed',
-        }),
+        'bg-muted text-foreground flex min-h-[112px] w-full flex-row rounded-2xl px-4 py-3 text-base leading-5',
         props.editable === false && 'opacity-50',
+        Platform.select({
+          web: cn(
+            'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-[color,box-shadow] md:text-sm',
+            'focus-visible:ring-primary/50 focus-visible:ring-[3px] resize-y field-sizing-content',
+          ),
+          native: 'placeholder:text-muted-foreground/50',
+        }),
         className
       )}
       placeholderClassName={cn('text-muted-foreground', placeholderClassName)}

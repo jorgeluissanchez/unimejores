@@ -16,6 +16,8 @@ type Props = {
   secondaryTextColor: string;
   buttonBackground: string;
   buttonTextColor: string;
+  disabled?: boolean;
+  statusText?: string;
 };
 
 export function CourseCard({
@@ -28,12 +30,16 @@ export function CourseCard({
   secondaryTextColor,
   buttonBackground,
   buttonTextColor,
+  disabled,
+  statusText,
 }: Props) {
   const router = useRouter();
-  const statusText =
-    pendingCount === 0
+  const resolvedStatus =
+    statusText ??
+    (pendingCount === 0
       ? "Todos han Sido Calificados"
-      : `${pendingCount} Grupo${pendingCount !== 1 ? "s" : ""} por Calificar`;
+      : `${pendingCount} Grupo${pendingCount !== 1 ? "s" : ""} por Calificar`);
+  const isDisabled = disabled ?? pendingCount === 0;
 
   return (
     <View
@@ -52,7 +58,7 @@ export function CourseCard({
           className="mb-4 mt-1 text-[12px] leading-[16px]"
           style={{ color: secondaryTextColor }}
         >
-          {statusText}
+          {resolvedStatus}
         </Text>
 
         <Button
@@ -60,7 +66,7 @@ export function CourseCard({
           className="ml-auto mt-2 h-11 rounded-full px-5"
           style={{ backgroundColor: buttonBackground }}
           onPress={() => router.push((href ?? `/course/${course._id}`) as RelativePathString)}
-          disabled={pendingCount === 0}
+          disabled={isDisabled}
         >
           <Text className="text-[13px] tracking-wide" style={{ color: buttonTextColor }}>
             COMIENZA

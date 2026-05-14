@@ -1,21 +1,22 @@
 import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
+import { Button } from "@/core/components/ui/button";
+import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
-import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import {
   Category,
-  Criterium,
   Group,
   ProfessorEvaluation,
   ResultEvaluation,
 } from "@/features/professor/domain/entities/professor";
-import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";
-import { Ionicons } from "@expo/vector-icons";
+import { AddCategoryForm } from "@/features/professor/presentation/components/add-category-form";
+import { CreateEvaluationForm } from "@/features/professor/presentation/components/create-evaluation-form";
+import { UpdateCourseForm } from "@/features/professor/presentation/components/update-course-form";
+import { useProfessor } from "@/features/professor/presentation/context/professor-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Edit } from "lucide-react-native";
+import { ArrowLeft, CloudUpload, Edit, SquarePen, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -26,7 +27,6 @@ import {
   View,
 } from "react-native";
 import { SvgXml } from "react-native-svg";
-import { useProfessor } from "../context/professor-context";
 
 const PRIMARY = "#818CF8";
 const PRIMARY_LIGHT = "rgba(129,140,248,0.15)";
@@ -43,59 +43,69 @@ type EvalListItem = {
   avgScore: number | null;
 };
 
-type CriteriumScore = { criterium: Criterium; avg: number };
-
 export function ProfessorCourseDetailScreen() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const di = useDI();
-  const { loggedUser, expireSession } = useAuth();
-  const { myCourses, myCriteria } = useProfessor();
-  const repo = useMemo(() => di.resolve<ProfessorRepository>(TOKENS.ProfessorRepo), [di]);
+  const { loggedUser } = useAuth();
+  const {
+    myCourses,
+    myCriteria,
+    getCategoriesByCourse,
+    getEvaluationByCategory,
+    getGroupsByCategory,
+    getResultsByGroup,
+    addCategory,
+    addGroup,
+    getUserByEmail,
+    getMembersByGroup,
+    addMemberToGroup,
+  } = useProfessor();
 
   const course = useMemo(() => myCourses.find((c) => c._id === courseId), [myCourses, courseId]);
 
   const [tab, setTab] = useState<"evaluaciones" | "categorias">("evaluaciones");
   const [categoryData, setCategoryData] = useState<CategoryWithData[]>([]);
-  const [criteriaScores, setCriteriaScores] = useState<CriteriumScore[]>([]);
+  const [criteriaScores, setCriteriaScores] = useState<{ criteriumId: string; name: string; avg: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
+  const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
+  const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!courseId || !loggedUser) return;
     try {
       setIsLoading(true);
-      const cats = await repo.getCategoriesByCourse(courseId);
+      const cats = await getCategoriesByCourse(courseId);
       const withData = await Promise.all(
         cats.map(async (cat) => {
           const [ev, groups] = await Promise.all([
-            repo.getEvaluationByCategory(cat._id),
-            repo.getGroupsByCategory(cat._id),
+            getEvaluationByCategory(cat._id),
+            getGroupsByCategory(cat._id),
           ]);
           return { category: cat, evaluation: ev, groups };
         }),
       );
       setCategoryData(withData);
 
-      // Compute criteria avg scores
       if (myCriteria.length > 0) {
         const allResults: ResultEvaluation[] = [];
         for (const cd of withData) {
           for (const g of cd.groups) {
-            const res = await repo.getResultsByGroup(g._id);
+            const res = await getResultsByGroup(g._id);
             allResults.push(...res);
           }
         }
-        const scores: CriteriumScore[] = myCriteria.map((c) => {
+        const scores = myCriteria.map((c) => {
           const vals = allResults.filter((r) => r.criterium_id === c._id).map((r) => Number(r.score));
           const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-          return { criterium: c, avg };
+          return { criteriumId: c._id, name: c.name, avg };
         });
         setCriteriaScores(scores);
       }
     } catch (e: any) {
-      if (e?.message?.includes("401")) { await expireSession(); return; }
+      if (e?.message?.includes("401")) return;
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +151,7 @@ export function ProfessorCourseDetailScreen() {
 
     if (catIdx < 0 || grpIdx < 0) throw new Error("El CSV debe tener columnas 'Group Category Name' y 'Group Name'.");
 
-    const existingCats = await repo.getCategoriesByCourse(cId);
+    const existingCats = await getCategoriesByCourse(cId);
     const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c]));
 
     for (let i = 1; i < lines.length; i++) {
@@ -151,124 +161,174 @@ export function ProfessorCourseDetailScreen() {
       const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
       if (!catName || !grpName) continue;
 
-      // Ensure category exists
       if (!catMap.has(catName.toLowerCase())) {
-        await repo.addCategory({ name: catName, description: "", course_id: cId });
-        const updated = await repo.getCategoriesByCourse(cId);
+        await addCategory({ name: catName, description: "", course_id: cId });
+        const updated = await getCategoriesByCourse(cId);
         updated.forEach((c) => catMap.set(c.name.toLowerCase().trim(), c));
       }
       const cat = catMap.get(catName.toLowerCase())!;
 
-      // Ensure group exists
-      const groups = await repo.getGroupsByCategory(cat._id);
+      const groups = await getGroupsByCategory(cat._id);
       let group = groups.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
       if (!group) {
-        await repo.addGroup({ name: grpName, category_id: cat._id });
-        const updated = await repo.getGroupsByCategory(cat._id);
+        await addGroup({ name: grpName, category_id: cat._id });
+        const updated = await getGroupsByCategory(cat._id);
         group = updated.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
       }
 
-      // Enroll user if email provided
       if (group && email) {
-        const user = await repo.getUserByEmail(email);
+        const user = await getUserByEmail(email);
         if (user) {
-          const members = await repo.getMembersByGroup(group._id);
-          const alreadyIn = members.some((m) => m.userId === user.userId);
-          if (!alreadyIn) await repo.addMemberToGroup(user.userId, group._id);
+          const members = await getMembersByGroup(group._id);
+          if (!members.some((m) => m.userId === user.userId)) {
+            await addMemberToGroup(user.userId, group._id);
+          }
         }
       }
     }
   };
 
   const maxScore = 5;
+  const containerWidth = Math.min(width, 512);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={{ height: 240, position: "relative", overflow: "hidden", borderBottomLeftRadius: 12, borderBottomRightRadius: 12, marginBottom: 8 }}>
-          <SvgXml xml={COURSE_DETAIL_SVG} width={width} height={width} style={{ position: "absolute", bottom: 0, left: 0 }} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: "center" }}>
+        <View className="w-full max-w-lg">
+          <View style={{ height: 260, position: "relative", overflow: "hidden", borderBottomLeftRadius: 24, borderBottomRightRadius: 24, marginBottom: 8, backgroundColor: "#3F3D56" }}>
+            <SvgXml
+              xml={COURSE_DETAIL_SVG}
+              width={containerWidth}
+              height={containerWidth}
+              style={{ position: "absolute", bottom: 0, left: 0 }}
+            />
 
-          {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.replace("/home" as any)}
-            style={{ position: "absolute", left: 20, top: 52, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(230,231,242,0.85)", alignItems: "center", justifyContent: "center" }}
-          >
-            <ArrowLeft width={20} height={20} color="#1F265E" />
-          </TouchableOpacity>
+            <Button
+              variant="secondary"
+              onPress={() => router.replace("/home" as any)}
+              className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              style={{ position: "absolute", left: 20, top: 24 }}
+            >
+              <ArrowLeft size={20} color="#1F265E" />
+            </Button>
 
-          {/* Edit button */}
-          <TouchableOpacity
-            onPress={() => {/* future: edit course */ }}
-            style={{ position: "absolute", right: 20, top: 52, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(230,231,242,0.85)", alignItems: "center", justifyContent: "center" }}
-          >
-            <Edit width={20} height={20} color="#1F265E" />
-          </TouchableOpacity>
+            <Button
+              onPress={() => setIsEditCourseOpen(true)}
+              variant="secondary"
+              disabled={!course}
+              className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              style={{ position: "absolute", right: 20, top: 24 }}
+            >
+              <Edit size={20} color="#1F265E" />
+            </Button>
 
-          {/* Criteria progress bars */}
-          {criteriaScores.length > 0 && (
-            <View style={{ position: "absolute", bottom: 20, left: 20, right: 20, gap: 6 }}>
-              {criteriaScores.slice(0, 4).map((cs) => (
-                <View key={cs.criterium._id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <View style={{ width: 96, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2 }}>
-                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }} numberOfLines={1}>{cs.criterium.name}</Text>
+            {criteriaScores.length > 0 && (
+              <View style={{ position: "absolute", bottom: 24, left: 20, right: 20, gap: 10 }}>
+                {criteriaScores.slice(0, 4).map((cs) => (
+                  <View key={cs.criteriumId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View style={{ minWidth: 92, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 }}>
+                      <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }} numberOfLines={1}>{cs.name}</Text>
+                    </View>
+                    <View style={{ flex: 1, height: 8, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 4, overflow: "hidden" }}>
+                      <View style={{ width: `${Math.min((cs.avg / maxScore) * 100, 100)}%`, height: "100%", backgroundColor: "#fff", borderRadius: 4 }} />
+                    </View>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700", width: 32, textAlign: "right" }}>{cs.avg.toFixed(1)}</Text>
                   </View>
-                  <View style={{ flex: 1, height: 6, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 3 }}>
-                    <View style={{ width: `${Math.min((cs.avg / maxScore) * 100, 100)}%`, height: "100%", backgroundColor: "#fff", borderRadius: 3 }} />
-                  </View>
-                  <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", width: 28, textAlign: "right" }}>{cs.avg.toFixed(1)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Course info */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <Text style={{ fontSize: 28, fontWeight: "700", color: "#111827" }}>{course?.name ?? "Curso"}</Text>
-          {!!course?.description && (
-            <Text style={{ fontSize: 13, color: "#9CA3AF", fontStyle: "italic", marginTop: 8, lineHeight: 20 }}>
-              {course.description}
-            </Text>
-          )}
-        </View>
-
-        {/* Tabs */}
-        <View style={{ flexDirection: "row", paddingHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
-          {(["evaluaciones", "categorias"] as const).map((t) => (
-            <TouchableOpacity key={t} onPress={() => setTab(t)} style={{ marginRight: 24, paddingBottom: 12, borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}>
-              <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: tab === t ? PRIMARY : "#9CA3AF" }}>
-                {t.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {isLoading ? (
-          <View style={{ padding: 40, alignItems: "center" }}>
-            <ActivityIndicator color={PRIMARY} size="large" />
+                ))}
+              </View>
+            )}
           </View>
-        ) : tab === "evaluaciones" ? (
-          <EvaluacionesTab evalList={evalList} courseId={courseId!} />
-        ) : (
-          <CategoriasTab
-            categoryData={categoryData}
-            courseId={courseId!}
-            onImport={handleImportCsv}
-            isImporting={isImporting}
-            onRefresh={load}
-            repo={repo}
-          />
-        )}
+
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <Text style={{ fontSize: 28, fontWeight: "700", color: "#111827" }}>{course?.name ?? "Curso"}</Text>
+            {!!course?.description && (
+              <Text style={{ fontSize: 13, color: "#9CA3AF", fontStyle: "italic", marginTop: 8, lineHeight: 20 }}>
+                {course.description}
+              </Text>
+            )}
+          </View>
+
+          <View style={{ flexDirection: "row", paddingHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+            {(["evaluaciones", "categorias"] as const).map((t) => (
+              <TouchableOpacity key={t} onPress={() => setTab(t)} style={{ marginRight: 24, paddingBottom: 12, borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}>
+                <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: tab === t ? PRIMARY : "#9CA3AF" }}>
+                  {t.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {isLoading ? (
+            <View style={{ padding: 40, alignItems: "center" }}>
+              <ActivityIndicator color={PRIMARY} size="large" />
+            </View>
+          ) : tab === "evaluaciones" ? (
+            <EvaluacionesTab evalList={evalList} courseId={courseId!} onCreateEval={() => setIsCreateEvalOpen(true)} />
+          ) : (
+            <CategoriasTab
+              categoryData={categoryData}
+              courseId={courseId!}
+              onImport={handleImportCsv}
+              isImporting={isImporting}
+              onCreateCategory={() => setIsCreateCatOpen(true)}
+            />
+          )}
+        </View>
       </ScrollView>
+      <Drawer open={isCreateEvalOpen} onOpenChange={(o) => { if (!o) setIsCreateEvalOpen(false); }}>
+        <DrawerContent>
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear evaluación</DrawerTitle>
+          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
+            <View className="flex-row items-center mb-6">
+              <Button variant="secondary" onPress={() => setIsCreateEvalOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                <X size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">CREAR EVALUACIÓN</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <CreateEvaluationForm courseId={courseId!} onCancel={async () => { setIsCreateEvalOpen(false); await load(); }} />
+          </View>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={isCreateCatOpen} onOpenChange={(o) => { if (!o) setIsCreateCatOpen(false); }}>
+        <DrawerContent>
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear categoría</DrawerTitle>
+          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
+            <View className="flex-row items-center mb-6">
+              <Button variant="secondary" onPress={() => setIsCreateCatOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                <X size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">CREAR CATEGORÍA</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <AddCategoryForm courseId={courseId!} onCancel={async () => { setIsCreateCatOpen(false); await load(); }} />
+          </View>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={isEditCourseOpen} onOpenChange={(o) => { if (!o) setIsEditCourseOpen(false); }}>
+        <DrawerContent>
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar curso</DrawerTitle>
+          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
+            <View className="flex-row items-center mb-6">
+              <Button variant="secondary" onPress={() => setIsEditCourseOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                <X size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">EDITAR CURSO</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            {course && <UpdateCourseForm course={course as any} onCancel={() => setIsEditCourseOpen(false)} />}
+          </View>
+        </DrawerContent>
+      </Drawer>
     </View>
   );
 }
 
-// ─── EVALUACIONES TAB ────────────────────────────────────────────────────────
+// ─── EVALUACIONES TAB ─────────────────────────────────────────────────────────
 
-function EvaluacionesTab({ evalList, courseId }: { evalList: EvalListItem[]; courseId: string }) {
-  const router = useRouter();
+function EvaluacionesTab({ evalList, courseId, onCreateEval }: { evalList: EvalListItem[]; courseId: string; onCreateEval: () => void }) {
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 }}>
       {evalList.length === 0 ? (
@@ -280,7 +340,7 @@ function EvaluacionesTab({ evalList, courseId }: { evalList: EvalListItem[]; cou
           <View key={item.evaluation._id}>
             <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}>
               <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>
-                <Ionicons name="create-outline" size={20} color={PRIMARY} />
+                <SquarePen size={20} color={PRIMARY} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.evaluation.title}</Text>
@@ -294,7 +354,7 @@ function EvaluacionesTab({ evalList, courseId }: { evalList: EvalListItem[]; cou
         ))
       )}
       <TouchableOpacity
-        onPress={() => router.push(`/professor-course/${courseId}/create-evaluation` as RelativePathString)}
+        onPress={onCreateEval}
         style={{ backgroundColor: PRIMARY, borderRadius: 30, paddingVertical: 16, alignItems: "center", marginTop: 24 }}
       >
         <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UN NUEVA EVALUACION</Text>
@@ -310,20 +370,17 @@ function CategoriasTab({
   courseId,
   onImport,
   isImporting,
-  onRefresh,
-  repo,
+  onCreateCategory,
 }: {
   categoryData: CategoryWithData[];
   courseId: string;
   onImport: () => void;
   isImporting: boolean;
-  onRefresh: () => void;
-  repo: ProfessorRepository;
+  onCreateCategory: () => void;
 }) {
   const router = useRouter();
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 }}>
-      {/* Import card */}
       <TouchableOpacity
         onPress={onImport}
         disabled={isImporting}
@@ -334,7 +391,7 @@ function CategoriasTab({
         ) : (
           <>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-              <Ionicons name="cloud-upload-outline" size={22} color="#fff" />
+              <CloudUpload size={22} color="#fff" />
             </View>
             <Text style={{ color: PRIMARY, fontWeight: "700", fontSize: 15, marginBottom: 4 }}>Importar desde Brightspace</Text>
             <Text style={{ color: "#9CA3AF", fontSize: 12, marginBottom: 14 }}>CSV o JSON con categorías y grupos</Text>
@@ -345,7 +402,6 @@ function CategoriasTab({
         )}
       </TouchableOpacity>
 
-      {/* Category list */}
       {categoryData.map((cd) => (
         <View key={cd.category._id}>
           <TouchableOpacity
@@ -353,7 +409,7 @@ function CategoriasTab({
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18 }}
           >
             <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>
-              <Ionicons name="create-outline" size={20} color={PRIMARY} />
+              <SquarePen size={20} color={PRIMARY} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{cd.category.name}</Text>
@@ -367,7 +423,7 @@ function CategoriasTab({
       ))}
 
       <TouchableOpacity
-        onPress={() => router.push(`/professor-course/${courseId}/create-category` as RelativePathString)}
+        onPress={onCreateCategory}
         style={{ backgroundColor: PRIMARY, borderRadius: 30, paddingVertical: 16, alignItems: "center", marginTop: 24 }}
       >
         <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UN NUEVA CATEGORIA</Text>

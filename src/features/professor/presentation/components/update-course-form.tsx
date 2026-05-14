@@ -56,10 +56,9 @@ export function UpdateCourseForm({ course, onCancel }: Props) {
         <Label>Descripción</Label>
         <Textarea value={description} onChangeText={setDescription} />
       </View>
-      <View className="flex-row items-center justify-end gap-2">
-        <Button variant="outline" onPress={onCancel}><Text>Cancelar</Text></Button>
-        <Button onPress={handleSubmit}><Text>Actualizar</Text></Button>
-      </View>
+      <Button onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+        <Text>GUARDAR</Text>
+      </Button>
     </View>
   );
 }

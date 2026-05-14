@@ -1,21 +1,20 @@
+import { Button } from "@/core/components/ui/button";
+import { Input } from "@/core/components/ui/input";
 import { Text } from "@/core/components/ui/text";
-import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-provider";
-import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Group, GroupMember } from "@/features/professor/domain/entities/professor";
-import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";
-import { Ionicons } from "@expo/vector-icons";
+import { AddGroupForm } from "@/features/professor/presentation/components/add-group-form";
+import { useProfessor } from "@/features/professor/presentation/context/professor-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, SquarePen } from "lucide-react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
   SafeAreaView,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -27,9 +26,21 @@ type GroupWithMembers = { group: Group; members: GroupMember[] };
 export function ProfessorCategoryGroupsScreen() {
   const { courseId, categoryId } = useLocalSearchParams<{ courseId: string; categoryId: string }>();
   const router = useRouter();
-  const di = useDI();
-  const { expireSession } = useAuth();
-  const repo = useMemo(() => di.resolve<ProfessorRepository>(TOKENS.ProfessorRepo), [di]);
+
+  const goToGroup = (groupId: string) =>
+    router.push(
+      `/professor-course/${courseId}/category/${categoryId}/group/${groupId}` as RelativePathString,
+    );
+  const {
+    getCategoriesByCourse,
+    updateCategory,
+    getGroupsByCategory,
+    getGroupMembersDetail,
+    getUserByEmail,
+    getMembersByGroup,
+    addMemberToGroup,
+    addGroup,
+  } = useProfessor();
 
   const [categoryName, setCategoryName] = useState("");
   const [originalName, setOriginalName] = useState("");
@@ -38,32 +49,29 @@ export function ProfessorCategoryGroupsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
 
   const load = useCallback(async () => {
     if (!categoryId) return;
     try {
       setIsLoading(true);
-      const rawGroups = await repo.getGroupsByCategory(categoryId);
+      const rawGroups = await getGroupsByCategory(categoryId);
       const withMembers = await Promise.all(
         rawGroups.map(async (g) => {
-          const members = await repo.getGroupMembersDetail(g._id);
+          const members = await getGroupMembersDetail(g._id);
           return { group: g, members };
         }),
       );
       setGroups(withMembers);
     } catch (e: any) {
-      if (e?.message?.includes("401")) { await expireSession(); return; }
+      if (e?.message?.includes("401")) return;
     } finally {
       setIsLoading(false);
     }
   }, [categoryId]);
 
-  // Load category name from parent (categories list) — we just show from route or fetch
   useEffect(() => {
     load();
-    // Fetch category name
-    repo.getCategoriesByCourse(courseId ?? "").then((cats) => {
+    getCategoriesByCourse(courseId ?? "").then((cats) => {
       const cat = cats.find((c) => c._id === categoryId);
       if (cat) { setCategoryName(cat.name); setOriginalName(cat.name); }
     }).catch(() => {});
@@ -74,9 +82,9 @@ export function ProfessorCategoryGroupsScreen() {
     if (!categoryName.trim() || categoryName.trim() === originalName) return;
     try {
       setIsSaving(true);
-      const cats = await repo.getCategoriesByCourse(courseId ?? "");
+      const cats = await getCategoriesByCourse(courseId ?? "");
       const cat = cats.find((c) => c._id === categoryId);
-      if (cat) await repo.updateCategory({ ...cat, name: categoryName.trim() });
+      if (cat) await updateCategory({ ...cat, name: categoryName.trim() });
       setOriginalName(categoryName.trim());
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -85,33 +93,7 @@ export function ProfessorCategoryGroupsScreen() {
     }
   };
 
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
-    try {
-      await repo.addGroup({ name: newGroupName.trim(), category_id: categoryId! });
-      setNewGroupName("");
-      setIsCreatingGroup(false);
-      await load();
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
-    }
-  };
-
-  const handleDeleteGroup = async (groupId: string) => {
-    Alert.alert("Eliminar grupo", "¿Estás seguro?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar", style: "destructive", onPress: async () => {
-          try {
-            await repo.deleteGroup(groupId);
-            await load();
-          } catch (e: any) { Alert.alert("Error", e.message); }
-        },
-      },
-    ]);
-  };
-
-  const handleImportCsv = async () => {
+const handleImportCsv = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "*/*"] });
       if (result.canceled || !result.assets?.[0]) return;
@@ -138,7 +120,7 @@ export function ProfessorCategoryGroupsScreen() {
 
     if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name' o 'Grupo'.");
 
-    const existingGroups = await repo.getGroupsByCategory(categoryId!);
+    const existingGroups = await getGroupsByCategory(categoryId!);
     const groupMap = new Map(existingGroups.map((g) => [g.name.toLowerCase().trim(), g]));
 
     for (let i = 1; i < lines.length; i++) {
@@ -148,18 +130,18 @@ export function ProfessorCategoryGroupsScreen() {
       if (!grpName) continue;
 
       if (!groupMap.has(grpName.toLowerCase())) {
-        await repo.addGroup({ name: grpName, category_id: categoryId! });
-        const updated = await repo.getGroupsByCategory(categoryId!);
+        await addGroup({ name: grpName, category_id: categoryId! });
+        const updated = await getGroupsByCategory(categoryId!);
         updated.forEach((g) => groupMap.set(g.name.toLowerCase().trim(), g));
       }
 
       const group = groupMap.get(grpName.toLowerCase())!;
       if (email) {
-        const user = await repo.getUserByEmail(email);
+        const user = await getUserByEmail(email);
         if (user) {
-          const members = await repo.getMembersByGroup(group._id);
+          const members = await getMembersByGroup(group._id);
           if (!members.some((m) => m.userId === user.userId)) {
-            await repo.addMemberToGroup(user.userId, group._id);
+            await addMemberToGroup(user.userId, group._id);
           }
         }
       }
@@ -168,70 +150,41 @@ export function ProfessorCategoryGroupsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <View style={{ flex: 1, paddingHorizontal: 20 }}>
-        {/* Header */}
+      <View className="w-full max-w-lg mx-auto flex-1" style={{ paddingHorizontal: 20 }}>
         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 24 }}>
-          <TouchableOpacity
+          <Button
             onPress={() => router.back()}
-            style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center", marginRight: 16 }}
+            className="rounded-full w-[50px] h-[50px] p-0 items-center justify-center mr-4"
+            style={{ backgroundColor: "#E6E7F2" }}
           >
-            <Ionicons name="arrow-back" size={18} color="#374151" />
-          </TouchableOpacity>
+            <ArrowLeft size={20} color="#1F265E" />
+          </Button>
           <Text style={{ fontSize: 18, fontWeight: "700", letterSpacing: 1, color: "#111827" }}>CATEGORIA</Text>
         </View>
 
-        {/* Name input */}
-        <TextInput
+        <Input
           value={categoryName}
           onChangeText={setCategoryName}
           placeholder="Nombre"
-          placeholderTextColor="#9CA3AF"
-          style={{
-            backgroundColor: "#F3F4F6",
-            borderRadius: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            fontSize: 15,
-            color: "#111827",
-            marginBottom: 20,
-          }}
+          style={{ marginBottom: 20 }}
         />
 
-        {/* Groups section header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+        <View className="flex-row items-center gap-2 mb-3">
           <Text style={{ color: PRIMARY, fontWeight: "700", fontSize: 13, letterSpacing: 1, flex: 1 }}>GRUPOS</Text>
-          <TouchableOpacity
-            onPress={handleImportCsv}
-            disabled={isImporting}
-            style={{ backgroundColor: "#E5E7EB", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8 }}
-          >
-            {isImporting ? <ActivityIndicator size="small" color={PRIMARY} /> : <Text style={{ fontWeight: "700", fontSize: 13, color: "#374151" }}>IMPORTAR</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setIsCreatingGroup(true)}
-            style={{ backgroundColor: PRIMARY, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
-          >
-            <Text style={{ fontWeight: "700", fontSize: 13, color: "#fff" }}>Crear Grupo</Text>
-          </TouchableOpacity>
+          <Button size="sm" variant="secondary" onPress={handleImportCsv} disabled={isImporting}>
+            {isImporting ? <ActivityIndicator size="small" color={PRIMARY} /> : <Text>IMPORTAR</Text>}
+          </Button>
+          <Button size="sm" onPress={() => setIsCreatingGroup(true)}>
+            <Text>Crear Grupo</Text>
+          </Button>
         </View>
 
-        {/* New group input */}
         {isCreatingGroup && (
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 8 }}>
-            <TextInput
-              value={newGroupName}
-              onChangeText={setNewGroupName}
-              placeholder="Nombre del grupo"
-              placeholderTextColor="#9CA3AF"
-              autoFocus
-              style={{ flex: 1, backgroundColor: "#F3F4F6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: "#111827" }}
+          <View style={{ marginBottom: 12 }}>
+            <AddGroupForm
+              categoryId={categoryId!}
+              onCancel={async () => { setIsCreatingGroup(false); await load(); }}
             />
-            <TouchableOpacity onPress={handleCreateGroup} style={{ backgroundColor: PRIMARY, borderRadius: 10, padding: 10 }}>
-              <Ionicons name="checkmark" size={18} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setIsCreatingGroup(false)} style={{ borderRadius: 10, padding: 10 }}>
-              <Ionicons name="close" size={18} color="#9CA3AF" />
-            </TouchableOpacity>
           </View>
         )}
 
@@ -250,7 +203,10 @@ export function ProfessorCategoryGroupsScreen() {
             ListEmptyComponent={<Text style={{ color: "#9CA3AF", textAlign: "center", marginTop: 24 }}>Sin grupos aún</Text>}
             renderItem={({ item }) => (
               <View>
-                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}>
+                <TouchableOpacity
+                  onPress={() => goToGroup(item.group._id)}
+                  style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.group.name.toUpperCase()}</Text>
                     {item.members.length > 0 ? (
@@ -261,35 +217,27 @@ export function ProfessorCategoryGroupsScreen() {
                       <Text style={{ fontSize: 12, color: "#D1D5DB", marginTop: 2 }}>Sin miembros</Text>
                     )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteGroup(item.group._id)}
-                    style={{ width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }}
+                  <View
+                    className="w-[50px] h-[50px] rounded-2xl items-center justify-center"
+                    style={{ backgroundColor: "#E6E7F2" }}
                   >
-                    <Ionicons name="create-outline" size={16} color="#6B7280" />
-                  </TouchableOpacity>
-                </View>
+                    <SquarePen size={18} color="#1F265E" />
+                  </View>
+                </TouchableOpacity>
                 <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
               </View>
             )}
           />
         )}
 
-        {/* Save button */}
-        <TouchableOpacity
+        <Button
           onPress={handleSave}
           disabled={isSaving || categoryName.trim() === originalName}
-          style={{
-            backgroundColor: categoryName.trim() !== originalName ? PRIMARY : "#E5E7EB",
-            borderRadius: 30,
-            paddingVertical: 16,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
+          size="lg"
+          className="rounded-full mb-3"
         >
-          {isSaving ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: categoryName.trim() !== originalName ? "#fff" : "#9CA3AF", fontWeight: "700", letterSpacing: 1 }}>GUARDAR</Text>
-          )}
-        </TouchableOpacity>
+          {isSaving ? <ActivityIndicator color="#fff" /> : <Text>GUARDAR</Text>}
+        </Button>
       </View>
     </SafeAreaView>
   );

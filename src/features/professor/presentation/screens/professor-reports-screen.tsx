@@ -1,6 +1,4 @@
 import { Text } from "@/core/components/ui/text";
-import { TOKENS } from "@/core/constants/tokens";
-import { useDI } from "@/core/di/di-provider";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import {
   Category,
@@ -11,10 +9,9 @@ import {
   ResultEvaluation,
   StudentEnrollment,
 } from "@/features/professor/domain/entities/professor";
-import { ProfessorRepository } from "@/features/professor/domain/repositories/professor-repository";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,10 +33,17 @@ type CriteriumAvg = { criterium: Criterium; avg: number };
 type CourseScores = { course: Course; criteriaAvgs: CriteriumAvg[] };
 
 export function ProfessorReportsScreen() {
-  const di = useDI();
   const { loggedUser, expireSession } = useAuth();
-  const { myCourses, myCriteria } = useProfessor();
-  const repo = useMemo(() => di.resolve<ProfessorRepository>(TOKENS.ProfessorRepo), [di]);
+  const {
+    myCourses,
+    myCriteria,
+    getCategoriesByCourse,
+    getGroupsByCategory,
+    getResultsByGroup,
+    getEvaluationByCategory,
+    getCriteriaForEvaluation,
+    getMembersByGroup,
+  } = useProfessor();
   const { width } = useWindowDimensions();
 
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -51,12 +55,12 @@ export function ProfessorReportsScreen() {
   // Compute avg scores per criterium for one course
   const computeCourseScores = useCallback(async (course: Course): Promise<CriteriumAvg[]> => {
     if (myCriteria.length === 0) return [];
-    const cats = await repo.getCategoriesByCourse(course._id);
+    const cats = await getCategoriesByCourse(course._id);
     const allResults: ResultEvaluation[] = [];
     for (const cat of cats) {
-      const groups = await repo.getGroupsByCategory(cat._id);
+      const groups = await getGroupsByCategory(cat._id);
       for (const g of groups) {
-        const res = await repo.getResultsByGroup(g._id);
+        const res = await getResultsByGroup(g._id);
         allResults.push(...res);
       }
     }
@@ -65,7 +69,7 @@ export function ProfessorReportsScreen() {
       const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
       return { criterium: c, avg };
     });
-  }, [myCriteria, repo]);
+  }, [myCriteria]);
 
   const load = useCallback(async () => {
     if (!loggedUser || myCourses.length === 0) { setIsLoading(false); return; }
@@ -91,12 +95,12 @@ export function ProfessorReportsScreen() {
 
   const loadCategories = useCallback(async (courseId: string) => {
     try {
-      const cats = await repo.getCategoriesByCourse(courseId);
+      const cats = await getCategoriesByCourse(courseId);
       const withData = await Promise.all(
         cats.map(async (cat) => {
           const [ev, groups] = await Promise.all([
-            repo.getEvaluationByCategory(cat._id),
-            repo.getGroupsByCategory(cat._id),
+            getEvaluationByCategory(cat._id),
+            getGroupsByCategory(cat._id),
           ]);
           return { category: cat, evaluation: ev, groupCount: groups.length };
         }),
@@ -105,7 +109,7 @@ export function ProfessorReportsScreen() {
     } catch {
       setCategories([]);
     }
-  }, [repo]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -123,8 +127,8 @@ export function ProfessorReportsScreen() {
     setLoadingCategory(item.category._id);
     try {
       const [criteria, groups] = await Promise.all([
-        repo.getCriteriaForEvaluation(item.evaluation._id),
-        repo.getGroupsByCategory(item.category._id),
+        getCriteriaForEvaluation(item.evaluation._id),
+        getGroupsByCategory(item.category._id),
       ]);
 
       const allMembers: StudentEnrollment[] = [];
@@ -132,8 +136,8 @@ export function ProfessorReportsScreen() {
       await Promise.all(
         groups.map(async (g: Group) => {
           const [members, results] = await Promise.all([
-            repo.getMembersByGroup(g._id),
-            repo.getResultsByGroup(g._id),
+            getMembersByGroup(g._id),
+            getResultsByGroup(g._id),
           ]);
           allMembers.push(...members);
           allResults.push(...results);
@@ -188,8 +192,11 @@ export function ProfessorReportsScreen() {
     );
   }
 
+  const containerWidth = Math.min(width, 512);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <View className="w-full max-w-lg mx-auto flex-1">
       <FlatList
         data={categories}
         keyExtractor={(item) => item.category._id}
@@ -202,7 +209,7 @@ export function ProfessorReportsScreen() {
 
             {/* Bar chart */}
             {myCriteria.length > 0 && courseScores.length > 0 && (
-              <BarChart courses={myCourses} courseScores={courseScores} criteria={myCriteria} chartWidth={width - 40} />
+              <BarChart courses={myCourses} courseScores={courseScores} criteria={myCriteria} chartWidth={containerWidth - 40} />
             )}
 
             {/* Course tabs */}
@@ -256,6 +263,7 @@ export function ProfessorReportsScreen() {
           </View>
         )}
       />
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,136 +1,96 @@
 import { Button } from "@/core/components/ui/button";
-import { Card, CardContent } from "@/core/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/core/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/core/components/ui/drawer";
-import { Input } from "@/core/components/ui/input";
-import { Label } from "@/core/components/ui/label";
+import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
-import { Textarea } from "@/core/components/ui/textarea";
-import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Criterium } from "@/features/professor/domain/entities/professor";
+import { AddCriteriumForm } from "@/features/professor/presentation/components/add-criterium-form";
+import { EditCriteriumForm } from "@/features/professor/presentation/components/edit-criterium-form";
+import { ArrowLeft, SquarePen } from "lucide-react-native";
 import React, { useState } from "react";
-import { FlatList, Keyboard, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { useProfessor } from "../context/professor-context";
 
 type Props = { open: boolean; onClose: () => void };
 
 export function CriteriaDrawer({ open, onClose }: Props) {
-  const { myCriteria, addCriterium, updateCriterium, deleteCriterium } = useProfessor();
-  const { loggedUser } = useAuth();
-
-  const [newName, setNewName] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [nameError, setNameError] = useState("");
-
+  const { myCriteria } = useProfessor();
   const [editTarget, setEditTarget] = useState<Criterium | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDesc, setEditDesc] = useState("");
-
-  const handleAdd = async () => {
-    Keyboard.dismiss();
-    if (!newName.trim()) { setNameError("El nombre es obligatorio"); return; }
-    if (!loggedUser) return;
-    await addCriterium({ name: newName.trim(), description: newDesc.trim(), created_by: loggedUser.userId });
-    setNewName("");
-    setNewDesc("");
-    setNameError("");
-  };
-
-  const openEdit = (c: Criterium) => {
-    setEditTarget(c);
-    setEditName(c.name);
-    setEditDesc(c.description);
-  };
-
-  const handleUpdate = async () => {
-    if (!editTarget || !editName.trim()) return;
-    await updateCriterium({ ...editTarget, name: editName.trim(), description: editDesc.trim() });
-    setEditTarget(null);
-  };
 
   return (
     <>
       <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
         <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Criterios de evaluación</DrawerTitle>
-            <DrawerDescription>Gestiona los criterios que puedes usar en evaluaciones</DrawerDescription>
-          </DrawerHeader>
-          
-
-          <View className="gap-4 py-4">
-            <View className="gap-1.5">
-              <Label>Nombre del criterio</Label>
-              <Input
-                value={newName}
-                onChangeText={(v) => {
-                  setNewName(v);
-                }}
-                placeholder="Nombre del criterio"
-                className={nameError ? "border-destructive" : undefined}
-              />
-              {!!nameError && <Text className="text-sm text-destructive">{nameError}</Text>}
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>
+            Criterios de evaluación
+          </DrawerTitle>
+          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
+            {/* Header */}
+            <View className="flex-row items-center mb-6">
+              <Button
+                variant="secondary"
+                onPress={onClose}
+                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              >
+                <ArrowLeft size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">CRITERIOS</Text>
+              <View style={{ width: 50 }} />
             </View>
 
-
-
-            <View className="gap-1.5">
-              <Label>Descripción del criterio</Label>
-              <Input
-                value={newDesc}
-                onChangeText={(v) => {
-                  setNewDesc(v);
-                }}
-                placeholder="Descripción del criterio"
-              />
+            {/* Add form */}
+            <View className="mb-5">
+              <AddCriteriumForm onDone={() => {}} />
             </View>
 
-            <Button onPress={handleAdd}><Text>Agregar</Text></Button>
+            {/* List */}
+            <Text className="text-sm text-primary mb-3">CRITERIOS</Text>
+            <View className="h-[1px] bg-primary" />
 
-          </View>
-          <FlatList
-            data={myCriteria}
-            keyExtractor={(item) => item._id}
-            contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 32 }}
-            ListEmptyComponent={<Text className="text-center text-muted-foreground py-4">Sin criterios aún</Text>}
-            renderItem={({ item }) => (
-              <Card>
-                <CardContent>
-                  <View className="flex-row items-center gap-2">
+            <FlatList
+              data={myCriteria}
+              keyExtractor={(item) => item._id}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
+              ListEmptyComponent={
+                <Text className="text-center text-muted-foreground py-6">Sin criterios aún</Text>
+              }
+              renderItem={({ item }) => (
+                <View>
+                  <View className="flex-row items-center py-4">
                     <View className="flex-1">
-                      <Text className="font-medium">{item.name}</Text>
-                      {!!item.description && <Text className="text-sm text-muted-foreground">{item.description}</Text>}
+                      <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.name}</Text>
+                      {!!item.description && (
+                        <Text variant="muted" className="text-xs">{item.description}</Text>
+                      )}
                     </View>
-
-                    <View className="flex-col gap-2">
-                      <Button size="sm" variant="outline" onPress={() => openEdit(item)}><Text>Editar</Text></Button>
-                      <Button size="sm" variant="destructive" onPress={() => deleteCriterium(item._id)}><Text>Eliminar</Text></Button>
-                    </View>
+                    <Button
+                      variant="secondary"
+                      onPress={() => setEditTarget(item)}
+                      className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                    >
+                      <SquarePen size={18} color="#1F265E" />
+                    </Button>
                   </View>
-                </CardContent>
-              </Card>
-            )}
-          />
+                  <View className="h-[1px] bg-gray-200" />
+                </View>
+              )}
+            />
+          </View>
         </DrawerContent>
       </Drawer>
 
+      {/* Edit dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Editar criterio</DialogTitle></DialogHeader>
-          <View className="gap-3 mt-2">
-            <View className="gap-1.5">
-              <Label>Nombre</Label>
-              <Input value={editName} onChangeText={setEditName} />
-            </View>
-            <View className="gap-1.5">
-              <Label>Descripción</Label>
-              <Textarea value={editDesc} onChangeText={setEditDesc} />
-            </View>
-            <View className="flex-row justify-end gap-2">
-              <Button variant="outline" onPress={() => setEditTarget(null)}><Text>Cancelar</Text></Button>
-              <Button onPress={handleUpdate}><Text>Actualizar</Text></Button>
-            </View>
-          </View>
+          <DialogHeader>
+            <DialogTitle>Editar criterio</DialogTitle>
+          </DialogHeader>
+          {editTarget && (
+            <EditCriteriumForm
+              criterium={editTarget}
+              onDone={() => setEditTarget(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>
