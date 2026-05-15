@@ -1,11 +1,18 @@
 import { Button } from "@/core/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/core/components/ui/combobox";
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
 import { Text } from "@/core/components/ui/text";
 import { Textarea } from "@/core/components/ui/textarea";
 import { Category } from "@/features/professor/domain/entities/professor";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Keyboard, View } from "react-native";
 import { useProfessor } from "../context/professor-context";
 
@@ -17,7 +24,8 @@ export function CreateEvaluationForm({ courseId, onCancel }: Props) {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [title, setTitle] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<{ value: string; label: string } | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
+  const [query, setQuery] = useState("");
   const [description, setDescription] = useState("");
   const [endDate, setEndDate] = useState("");
   const [errors, setErrors] = useState<Errors>({});
@@ -27,10 +35,18 @@ export function CreateEvaluationForm({ courseId, onCancel }: Props) {
     getCategoriesByCourse(courseId).then(setCategories).catch(() => {});
   }, [courseId]);
 
+  const filtered = useMemo(
+    () =>
+      query.trim()
+        ? categories.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+        : categories,
+    [categories, query]
+  );
+
   const validate = (): boolean => {
     const e: Errors = {};
     if (!title.trim()) e.title = "El título es obligatorio";
-    if (!selectedCategory?.value) e.category = "Selecciona una categoría";
+    if (!categoryId) e.category = "Selecciona una categoría";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -45,7 +61,7 @@ export function CreateEvaluationForm({ courseId, onCancel }: Props) {
         description: description.trim(),
         start_date: new Date().toISOString().split("T")[0],
         end_date: endDate.trim(),
-        category_id: selectedCategory!.value,
+        category_id: categoryId!,
       });
       onCancel();
     } catch (e: any) {
@@ -68,26 +84,29 @@ export function CreateEvaluationForm({ courseId, onCancel }: Props) {
         {!!errors.title && <Text className="text-sm text-destructive">{errors.title}</Text>}
       </View>
 
-      <View className="gap-1.5">
+      <View className="gap-1.5" style={{ zIndex: 10 }}>
         <Label>Categoría</Label>
-        <Select
-          value={selectedCategory}
+        <Combobox
+          value={categoryId}
           onValueChange={(v) => {
-            setSelectedCategory(v as any);
-            if (errors.category) setErrors((e) => ({ ...e, category: undefined }));
+            setCategoryId(v);
+            if (v && errors.category) setErrors((e) => ({ ...e, category: undefined }));
           }}
+          hasError={!!errors.category}
         >
-          <SelectTrigger className={errors.category ? "border border-destructive" : undefined}>
-            <SelectValue placeholder="Selecciona una categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((cat) => (
-              <SelectItem key={cat._id} value={cat._id} label={cat.name}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <ComboboxInput
+            placeholder="Buscar categoría..."
+            filterFn={setQuery}
+          />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxEmpty shown={filtered.length === 0} />
+              {filtered.map((cat) => (
+                <ComboboxItem key={cat._id} value={cat._id} label={cat.name} />
+              ))}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
         {!!errors.category && <Text className="text-sm text-destructive">{errors.category}</Text>}
       </View>
 

@@ -51,6 +51,7 @@ export class ProfessorRepositoryImpl implements ProfessorRepository {
 
   addGroup(group: NewGroup): Promise<void> { return this.ds.addGroup(group); }
   deleteGroup(groupId: string): Promise<void> { return this.ds.deleteGroup(groupId); }
+  updateGroup(group: Group): Promise<void> { return this.ds.updateGroup(group); }
   getGroupMembersDetail(groupId: string): Promise<GroupMember[]> { return this.ds.getGroupMembersDetail(groupId); }
   addMemberToGroup(userId: string, groupId: string): Promise<void> { return this.ds.addMemberToGroup(userId, groupId); }
   removeMemberFromGroup(userGroupId: string): Promise<void> { return this.ds.removeMemberFromGroup(userGroupId); }

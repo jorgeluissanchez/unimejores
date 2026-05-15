@@ -1,17 +1,23 @@
-import { Button } from "@/core/components/ui/button";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/core/components/ui/drawer";
+﻿import { Button } from "@/core/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/core/components/ui/combobox";
 import { Input } from "@/core/components/ui/input";
+import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
-import { GroupMember, StudentEnrollment } from "@/features/professor/domain/entities/professor";
+import { GroupMember } from "@/features/professor/domain/entities/professor";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Minus, Plus } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, SafeAreaView, TouchableOpacity, View } from "react-native";
+import { ArrowLeft, Minus } from "lucide-react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Keyboard, View } from "react-native";
 
 const PRIMARY = "#818CF8";
-
-type Tab = "enrolled" | "others";
 
 export function ProfessorGroupDetailScreen() {
   const { courseId, categoryId, groupId } = useLocalSearchParams<{
@@ -20,118 +26,158 @@ export function ProfessorGroupDetailScreen() {
     groupId: string;
   }>();
   const router = useRouter();
+
   const {
     getGroupsByCategory,
     getGroupMembersDetail,
     removeMemberFromGroup,
     addMemberToGroup,
     getStudentsInCourse,
-    getAvailableStudents,
-    addStudentToCourse,
+    updateGroup,
   } = useProfessor();
 
   const [groupName, setGroupName] = useState("");
+  const [originalName, setOriginalName] = useState("");
   const [members, setMembers] = useState<GroupMember[]>([]);
-  const [enrolledStudents, setEnrolledStudents] = useState<StudentEnrollment[]>([]);
-  const [otherStudents, setOtherStudents] = useState<StudentEnrollment[]>([]);
+  const [available, setAvailable] = useState<{ userId: string; name: string; email: string }[]>([]);
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>("enrolled");
-  const [search, setSearch] = useState("");
-  const [adding, setAdding] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!categoryId || !groupId) return;
-    getGroupsByCategory(categoryId).then((groups) => {
-      const g = groups.find((x) => x._id === groupId);
-      if (g) setGroupName(g.name);
-    }).catch(() => {});
-  }, [categoryId, groupId]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!groupId || !courseId) return;
+    if (!groupId || !courseId || !categoryId) return;
     try {
       setIsLoading(true);
-      const [grpMembers, courseStudents, available] = await Promise.all([
-        getGroupMembersDetail(groupId),
+
+      const [groups, enrolled] = await Promise.all([
+        getGroupsByCategory(categoryId),
         getStudentsInCourse(courseId),
-        getAvailableStudents(courseId),
       ]);
+
+      const g = groups.find((x) => x._id === groupId);
+      if (g) { setGroupName(g.name); setOriginalName(g.name); }
+
+      const grpMembers = await getGroupMembersDetail(groupId);
       setMembers(grpMembers);
-      const memberIds = new Set(grpMembers.map((m) => m.userId));
-      setEnrolledStudents(courseStudents.filter((s) => !memberIds.has(s.userId)));
-      setOtherStudents(available);
-    } catch {
-      // ignore
+
+      // userId de todos los que ya tienen grupo en esta categoría
+      const allMembers = await Promise.all(groups.map((gr) => getGroupMembersDetail(gr._id)));
+      const occupiedIds = new Set(allMembers.flat().map((m) => m.userId));
+
+      setAvailable(enrolled.filter((s) => !occupiedIds.has(s.userId)));
+    } catch (e: any) {
+      if (!e?.message?.includes("401")) Alert.alert("Error", e.message);
     } finally {
       setIsLoading(false);
     }
-  }, [groupId, courseId]);
+  }, [groupId, courseId, categoryId]);
 
   useEffect(() => { load(); }, [load]);
 
+  const filtered = useMemo(
+    () =>
+      query.trim()
+        ? available.filter(
+            (s) =>
+              s.name.toLowerCase().includes(query.toLowerCase()) ||
+              s.email.toLowerCase().includes(query.toLowerCase()),
+          )
+        : available,
+    [available, query],
+  );
+
+  const handleSave = async () => {
+    Keyboard.dismiss();
+    if (!groupName.trim() || groupName.trim() === originalName) return;
+    try {
+      setIsSaving(true);
+      const groups = await getGroupsByCategory(categoryId!);
+      const g = groups.find((x) => x._id === groupId);
+      if (g) await updateGroup({ ...g, name: groupName.trim() });
+      setOriginalName(groupName.trim());
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo actualizar el grupo.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSelect = async (userId: string | undefined) => {
+    if (!userId) return;
+    try {
+      await addMemberToGroup(userId, groupId!);
+      await load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo añadir el miembro.");
+    }
+  };
+
   const handleRemove = async (userGroupId: string) => {
-    await removeMemberFromGroup(userGroupId);
-    await load();
-  };
-
-  const handleAddEnrolled = async (userId: string) => {
-    setAdding(userId);
+    setRemoving(userGroupId);
     try {
-      await addMemberToGroup(userId, groupId!);
+      await removeMemberFromGroup(userGroupId);
       await load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo remover el miembro.");
     } finally {
-      setAdding(null);
+      setRemoving(null);
     }
   };
-
-  const handleAddOther = async (userId: string) => {
-    setAdding(userId);
-    try {
-      await addStudentToCourse(courseId!, userId);
-      await addMemberToGroup(userId, groupId!);
-      await load();
-    } finally {
-      setAdding(null);
-    }
-  };
-
-  const matches = (s: StudentEnrollment) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase());
-
-  const filteredEnrolled = enrolledStudents.filter(matches);
-  const filteredOthers = otherStudents.filter(matches);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="w-full max-w-lg mx-auto flex-1 px-5">
-        <View className="flex-row items-center pt-4 pb-6">
+    <View className="flex-1 bg-white">
+      <View className="w-full max-w-lg mx-auto flex-1 px-5 pt-4 pb-6">
+
+        {/* ── Header ── */}
+        <View className="flex-row items-center mb-6">
           <Button
+            variant="secondary"
             onPress={() => router.back()}
-            className="rounded-full w-[50px] h-[50px] p-0 items-center justify-center mr-4"
-            style={{ backgroundColor: "#E6E7F2" }}
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
           >
             <ArrowLeft size={20} color="#1F265E" />
           </Button>
-          <Text className="text-lg font-bold tracking-widest text-gray-900">GRUPO</Text>
+          <Text variant="h4" className="text-center flex-1">GRUPO</Text>
+          <View style={{ width: 50 }} />
         </View>
 
-        <View className="bg-muted rounded-2xl px-4 py-3 mb-5">
-          <Text className="text-xs text-muted-foreground">Nombre</Text>
-          <Text className="text-base font-semibold text-foreground mt-0.5">{groupName.toUpperCase()}</Text>
+        {/* ── Nombre ── */}
+        <View className="gap-1.5 mb-5">
+          <Label>Nombre</Label>
+          <Input
+            value={groupName}
+            onChangeText={setGroupName}
+            placeholder="Nombre del grupo"
+          />
         </View>
 
-        <View className="flex-row items-center mb-3">
-          <Text className="text-[13px] font-bold tracking-widest flex-1" style={{ color: PRIMARY }}>
-            MIEMBROS
-          </Text>
-          <Button size="sm" onPress={() => { setSearch(""); setIsAddOpen(true); }}>
-            <Text>AÑADIR</Text>
-          </Button>
+        {/* ── Combobox añadir miembro ── */}
+        <View className="gap-1.5 mb-5" style={{ zIndex: 10 }}>
+          <Label>Añadir miembro</Label>
+          <Combobox value={undefined} onValueChange={handleSelect}>
+            <ComboboxInput
+              placeholder="Buscar por nombre o correo..."
+              filterFn={setQuery}
+            />
+            <ComboboxContent>
+              <ComboboxList>
+                <ComboboxEmpty shown={filtered.length === 0} />
+                {filtered.map((s) => (
+                  <ComboboxItem key={s.userId} value={s.userId} label={s.name} />
+                ))}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         </View>
-        <View className="h-px bg-gray-200 mb-1" />
 
+        {/* ── Miembros header ── */}
+        <Text variant="small" className="text-muted-foreground tracking-wide uppercase mb-3">
+          Miembros ({members.length})
+        </Text>
+        <View className="h-px bg-muted mb-1" />
+
+        {/* ── Lista ── */}
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator color={PRIMARY} />
@@ -140,93 +186,47 @@ export function ProfessorGroupDetailScreen() {
           <FlatList
             data={members}
             keyExtractor={(item) => item.userGroupId}
-            className="flex-1"
+            style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 24 }}
-            ListEmptyComponent={<Text className="text-muted-foreground text-center mt-6">Sin miembros aún</Text>}
+            ListEmptyComponent={
+              <View className="py-10 items-center">
+                <Text variant="muted">Sin miembros aún</Text>
+              </View>
+            }
             renderItem={({ item }) => (
               <View>
                 <View className="flex-row items-center py-4">
                   <View className="flex-1">
-                    <Text className="font-semibold text-base text-foreground">{item.name}</Text>
-                    {!!item.email && <Text className="text-xs text-muted-foreground mt-0.5">{item.email}</Text>}
+                    <Text className="font-semibold text-[15px] text-foreground">{item.name}</Text>
+                    {!!item.email && <Text variant="muted">{item.email}</Text>}
                   </View>
                   <Button
+                    variant="secondary"
                     onPress={() => handleRemove(item.userGroupId)}
-                    className="w-[50px] h-[50px] rounded-full p-0 items-center justify-center"
-                    style={{ backgroundColor: "#E6E7F2" }}
+                    disabled={removing === item.userGroupId}
+                    className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
                   >
-                    <Minus size={18} color="#1F265E" />
+                    {removing === item.userGroupId
+                      ? <ActivityIndicator size="small" color={PRIMARY} />
+                      : <Minus size={18} color="#1F265E" />
+                    }
                   </Button>
                 </View>
-                <View className="h-px bg-gray-100" />
+                <View className="h-px bg-muted" />
               </View>
             )}
           />
         )}
+        {/* ── Guardar ── */}
+        <Button
+          onPress={handleSave}
+          disabled={isSaving || groupName.trim() === originalName}
+          className="rounded-full w-full mt-4"
+          style={{ paddingVertical: 18 }}
+        >
+          <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
+        </Button>
       </View>
-
-      <Drawer open={isAddOpen} onOpenChange={(o) => { if (!o) setIsAddOpen(false); }}>
-        <DrawerContent side="bottom">
-          <DrawerHeader>
-            <DrawerTitle>Añadir miembro</DrawerTitle>
-            <DrawerDescription>Selecciona un estudiante para agregar al grupo</DrawerDescription>
-          </DrawerHeader>
-          <View className="px-4 pb-6 gap-3">
-            <View className="flex-row gap-1 rounded-xl bg-muted p-1">
-              {([
-                { key: "enrolled", label: "Inscritos en el curso" },
-                { key: "others", label: "Otros estudiantes" },
-              ] as { key: Tab; label: string }[]).map((t) => (
-                <TouchableOpacity
-                  key={t.key}
-                  onPress={() => setTab(t.key)}
-                  className={`flex-1 py-2 rounded-lg ${tab === t.key ? "bg-white" : ""}`}
-                >
-                  <Text
-                    className={`text-xs text-center font-semibold ${
-                      tab === t.key ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {t.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Input value={search} onChangeText={setSearch} placeholder="Buscar por nombre o correo..." />
-
-            <FlatList
-              data={tab === "enrolled" ? filteredEnrolled : filteredOthers}
-              keyExtractor={(s) => s.userId}
-              style={{ maxHeight: 360 }}
-              ListEmptyComponent={
-                <Text className="text-muted-foreground text-center py-6">
-                  {tab === "enrolled" ? "Sin estudiantes inscritos disponibles" : "Sin otros estudiantes"}
-                </Text>
-              }
-              renderItem={({ item }) => (
-                <View className="flex-row items-center py-3 border-b border-gray-100">
-                  <View className="flex-1">
-                    <Text className="font-semibold text-foreground">{item.name}</Text>
-                    {!!item.email && <Text className="text-xs text-muted-foreground">{item.email}</Text>}
-                  </View>
-                  {adding === item.userId ? (
-                    <ActivityIndicator color={PRIMARY} />
-                  ) : (
-                    <Button
-                      onPress={() => (tab === "enrolled" ? handleAddEnrolled(item.userId) : handleAddOther(item.userId))}
-                      className="w-[50px] h-[50px] rounded-full p-0 items-center justify-center"
-                      style={{ backgroundColor: PRIMARY }}
-                    >
-                      <Plus size={18} color="#fff" />
-                    </Button>
-                  )}
-                </View>
-              )}
-            />
-          </View>
-        </DrawerContent>
-      </Drawer>
-    </SafeAreaView>
+    </View>
   );
 }

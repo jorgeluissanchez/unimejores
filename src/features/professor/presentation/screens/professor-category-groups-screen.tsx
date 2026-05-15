@@ -1,20 +1,20 @@
-import { Button } from "@/core/components/ui/button";
+﻿import { Button } from "@/core/components/ui/button";
 import { Input } from "@/core/components/ui/input";
+import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Group, GroupMember } from "@/features/professor/domain/entities/professor";
-import { AddGroupForm } from "@/features/professor/presentation/components/add-group-form";
+import { GroupModal } from "@/features/professor/presentation/components/group-modal";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
-import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, SquarePen } from "lucide-react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, CloudUpload, Plus, SquarePen } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
-  SafeAreaView,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -27,10 +27,6 @@ export function ProfessorCategoryGroupsScreen() {
   const { courseId, categoryId } = useLocalSearchParams<{ courseId: string; categoryId: string }>();
   const router = useRouter();
 
-  const goToGroup = (groupId: string) =>
-    router.push(
-      `/professor-course/${courseId}/category/${categoryId}/group/${groupId}` as RelativePathString,
-    );
   const {
     getCategoriesByCourse,
     updateCategory,
@@ -48,7 +44,10 @@ export function ProfessorCategoryGroupsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  // Modals
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState<Group | null>(null);
 
   const load = useCallback(async () => {
     if (!categoryId) return;
@@ -93,7 +92,7 @@ export function ProfessorCategoryGroupsScreen() {
     }
   };
 
-const handleImportCsv = async () => {
+  const handleImportCsv = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "*/*"] });
       if (result.canceled || !result.assets?.[0]) return;
@@ -113,28 +112,22 @@ const handleImportCsv = async () => {
     const text = csv.replace(/^﻿/, "");
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
     if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
-
     const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
     const grpIdx = headers.findIndex((h) => h.includes("group") || h.includes("grupo"));
     const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("username") || h.includes("correo"));
-
     if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name' o 'Grupo'.");
-
     const existingGroups = await getGroupsByCategory(categoryId!);
     const groupMap = new Map(existingGroups.map((g) => [g.name.toLowerCase().trim(), g]));
-
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       const grpName = cols[grpIdx]?.trim();
       const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
       if (!grpName) continue;
-
       if (!groupMap.has(grpName.toLowerCase())) {
         await addGroup({ name: grpName, category_id: categoryId! });
         const updated = await getGroupsByCategory(categoryId!);
         updated.forEach((g) => groupMap.set(g.name.toLowerCase().trim(), g));
       }
-
       const group = groupMap.get(grpName.toLowerCase())!;
       if (email) {
         const user = await getUserByEmail(email);
@@ -149,49 +142,55 @@ const handleImportCsv = async () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <View className="w-full max-w-lg mx-auto flex-1" style={{ paddingHorizontal: 20 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 24 }}>
+    <View className="flex-1 bg-white">
+      <View className="w-full max-w-lg mx-auto flex-1 px-5 pt-4 pb-6">
+
+        {/* ── Header ── */}
+        <View className="flex-row items-center mb-6">
           <Button
+            variant="secondary"
             onPress={() => router.back()}
-            className="rounded-full w-[50px] h-[50px] p-0 items-center justify-center mr-4"
-            style={{ backgroundColor: "#E6E7F2" }}
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
           >
             <ArrowLeft size={20} color="#1F265E" />
           </Button>
-          <Text style={{ fontSize: 18, fontWeight: "700", letterSpacing: 1, color: "#111827" }}>CATEGORIA</Text>
+          <Text variant="h4" className="text-center flex-1">CATEGORÍA</Text>
+          <View style={{ width: 50 }} />
         </View>
 
-        <Input
-          value={categoryName}
-          onChangeText={setCategoryName}
-          placeholder="Nombre"
-          style={{ marginBottom: 20 }}
-        />
+        {/* ── Nombre ── */}
+        <View className="gap-1.5 mb-5">
+          <Label>Nombre</Label>
+          <Input value={categoryName} onChangeText={setCategoryName} placeholder="Nombre de la categoría" />
+        </View>
 
+        {/* ── Grupos header ── */}
         <View className="flex-row items-center gap-2 mb-3">
-          <Text style={{ color: PRIMARY, fontWeight: "700", fontSize: 13, letterSpacing: 1, flex: 1 }}>GRUPOS</Text>
-          <Button size="sm" variant="secondary" onPress={handleImportCsv} disabled={isImporting}>
-            {isImporting ? <ActivityIndicator size="small" color={PRIMARY} /> : <Text>IMPORTAR</Text>}
+          <Text variant="small" className="text-primary tracking-widest uppercase flex-1">Grupos</Text>
+          <Button
+            variant="secondary"
+            onPress={handleImportCsv}
+            disabled={isImporting}
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+          >
+            {isImporting
+              ? <ActivityIndicator size="small" color={PRIMARY} />
+              : <CloudUpload size={18} color="#1F265E" />
+            }
           </Button>
-          <Button size="sm" onPress={() => setIsCreatingGroup(true)}>
-            <Text>Crear Grupo</Text>
+          <Button
+            onPress={() => setIsCreateOpen(true)}
+            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+          >
+            <Plus size={18} color="#fff" />
           </Button>
         </View>
 
-        {isCreatingGroup && (
-          <View style={{ marginBottom: 12 }}>
-            <AddGroupForm
-              categoryId={categoryId!}
-              onCancel={async () => { setIsCreatingGroup(false); await load(); }}
-            />
-          </View>
-        )}
+        <View className="h-px bg-muted mb-1" />
 
-        <View style={{ height: 1, backgroundColor: "#E5E7EB", marginBottom: 4 }} />
-
+        {/* ── Lista ── */}
         {isLoading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <View className="flex-1 items-center justify-center">
             <ActivityIndicator color={PRIMARY} />
           </View>
         ) : (
@@ -199,47 +198,73 @@ const handleImportCsv = async () => {
             data={groups}
             keyExtractor={(item) => item.group._id}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            ListEmptyComponent={<Text style={{ color: "#9CA3AF", textAlign: "center", marginTop: 24 }}>Sin grupos aún</Text>}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            ListEmptyComponent={
+              <View className="py-10 items-center">
+                <Text variant="muted">Sin grupos aún</Text>
+              </View>
+            }
             renderItem={({ item }) => (
               <View>
                 <TouchableOpacity
-                  onPress={() => goToGroup(item.group._id)}
-                  style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}
+                  onPress={() => setEditGroup(item.group)}
+                  className="flex-row items-center py-4"
                 >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.group.name.toUpperCase()}</Text>
+                  <View className="flex-1">
+                    <Text className="font-bold text-[15px] text-foreground">
+                      {item.group.name.toUpperCase()}
+                    </Text>
                     {item.members.length > 0 ? (
-                      <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }} numberOfLines={1}>
+                      <Text variant="muted" numberOfLines={1}>
                         {item.members.map((m) => m.name).join(", ")}
                       </Text>
                     ) : (
-                      <Text style={{ fontSize: 12, color: "#D1D5DB", marginTop: 2 }}>Sin miembros</Text>
+                      <Text className="text-xs text-muted-foreground/50 mt-0.5">Sin miembros</Text>
                     )}
                   </View>
-                  <View
-                    className="w-[50px] h-[50px] rounded-2xl items-center justify-center"
-                    style={{ backgroundColor: "#E6E7F2" }}
-                  >
+                  <View className="w-[50px] h-[50px] rounded-2xl items-center justify-center bg-secondary">
                     <SquarePen size={18} color="#1F265E" />
                   </View>
                 </TouchableOpacity>
-                <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
+                <View className="h-px bg-muted" />
               </View>
             )}
           />
         )}
 
+        {/* ── Guardar nombre categoría ── */}
         <Button
           onPress={handleSave}
           disabled={isSaving || categoryName.trim() === originalName}
-          size="lg"
-          className="rounded-full mb-3"
+          className="rounded-full w-full mt-4"
+          style={{ paddingVertical: 18 }}
         >
-          {isSaving ? <ActivityIndicator color="#fff" /> : <Text>GUARDAR</Text>}
+          <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
         </Button>
       </View>
-    </SafeAreaView>
+
+      {/* ── Modal: Crear grupo ── */}
+      <GroupModal
+        mode="create"
+        categoryId={categoryId!}
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={() => { setIsCreateOpen(false); load(); }}
+      />
+
+      {/* ── Modal: Editar grupo ── */}
+      {editGroup && (
+        <GroupModal
+          mode="edit"
+          group={editGroup}
+          courseId={courseId!}
+          categoryId={categoryId!}
+          open={!!editGroup}
+          onClose={() => setEditGroup(null)}
+          onUpdated={() => load()}
+        />
+      )}
+    </View>
   );
 }
 

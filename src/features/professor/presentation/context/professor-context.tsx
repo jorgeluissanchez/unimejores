@@ -56,6 +56,7 @@ type ProfessorContextType = {
 
   addGroup: (group: NewGroup) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
+  updateGroup: (group: Group) => Promise<void>;
   getGroupMembersDetail: (groupId: string) => Promise<GroupMember[]>;
   addMemberToGroup: (userId: string, groupId: string) => Promise<void>;
   removeMemberFromGroup: (userGroupId: string) => Promise<void>;
@@ -151,6 +152,7 @@ export function ProfessorProvider({ children }: { children: React.ReactNode }) {
 
       addGroup: (group) => repo.addGroup(group),
       deleteGroup: (groupId) => repo.deleteGroup(groupId),
+      updateGroup: (group) => repo.updateGroup(group),
       getGroupMembersDetail: (groupId) => repo.getGroupMembersDetail(groupId),
       addMemberToGroup: (userId, groupId) => repo.addMemberToGroup(userId, groupId),
       removeMemberFromGroup: (userGroupId) => repo.removeMemberFromGroup(userGroupId),

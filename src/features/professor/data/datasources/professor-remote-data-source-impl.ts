@@ -236,6 +236,10 @@ export class ProfessorRemoteDataSourceImpl implements ProfessorDataSource {
     await this.deleteRecord("group", groupId);
   }
 
+  async updateGroup({ _id, ...updates }: Group): Promise<void> {
+    await this.updateRecord("group", _id, updates);
+  }
+
   async getGroupMembersDetail(groupId: string): Promise<GroupMember[]> {
     const userGroups = await this.readTable<{ _id: string; user_id: string }>("user_group", { group_id: groupId });
     if (userGroups.length === 0) return [];

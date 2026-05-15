@@ -54,6 +54,7 @@ export interface ProfessorRepository {
   // Groups management
   addGroup(group: NewGroup): Promise<void>;
   deleteGroup(groupId: string): Promise<void>;
+  updateGroup(group: Group): Promise<void>;
   getGroupMembersDetail(groupId: string): Promise<GroupMember[]>;
   addMemberToGroup(userId: string, groupId: string): Promise<void>;
   removeMemberFromGroup(userGroupId: string): Promise<void>;

@@ -11,12 +11,13 @@ import {
 } from "@/features/professor/domain/entities/professor";
 import { AddCategoryForm } from "@/features/professor/presentation/components/add-category-form";
 import { CreateEvaluationForm } from "@/features/professor/presentation/components/create-evaluation-form";
+import { EnrollStudentsForm } from "@/features/professor/presentation/components/enroll-students-form";
 import { UpdateCourseForm } from "@/features/professor/presentation/components/update-course-form";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CloudUpload, Edit, SquarePen, X } from "lucide-react-native";
+import { ArrowLeft, CloudUpload, Edit, SquarePen, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -72,6 +73,7 @@ export function ProfessorCourseDetailScreen() {
   const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
   const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
+  const [isEnrollOpen, setIsEnrollOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!courseId || !loggedUser) return;
@@ -212,15 +214,24 @@ export function ProfessorCourseDetailScreen() {
               <ArrowLeft size={20} color="#1F265E" />
             </Button>
 
-            <Button
-              onPress={() => setIsEditCourseOpen(true)}
-              variant="secondary"
-              disabled={!course}
-              className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
-              style={{ position: "absolute", right: 20, top: 24 }}
-            >
-              <Edit size={20} color="#1F265E" />
-            </Button>
+            <View style={{ position: "absolute", right: 20, top: 24, flexDirection: "row", gap: 10 }}>
+              <Button
+                onPress={() => setIsEnrollOpen(true)}
+                variant="secondary"
+                disabled={!course}
+                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              >
+                <Users size={20} color="#1F265E" />
+              </Button>
+              <Button
+                onPress={() => setIsEditCourseOpen(true)}
+                variant="secondary"
+                disabled={!course}
+                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              >
+                <Edit size={20} color="#1F265E" />
+              </Button>
+            </View>
 
             {criteriaScores.length > 0 && (
               <View style={{ position: "absolute", bottom: 24, left: 20, right: 20, gap: 10 }}>
@@ -248,14 +259,28 @@ export function ProfessorCourseDetailScreen() {
             )}
           </View>
 
-          <View style={{ flexDirection: "row", paddingHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
-            {(["evaluaciones", "categorias"] as const).map((t) => (
-              <TouchableOpacity key={t} onPress={() => setTab(t)} style={{ marginRight: 24, paddingBottom: 12, borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}>
-                <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: tab === t ? PRIMARY : "#9CA3AF" }}>
-                  {t.toUpperCase()}
-                </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+            <View style={{ flex: 1, flexDirection: "row" }}>
+              {(["evaluaciones", "categorias"] as const).map((t) => (
+                <TouchableOpacity key={t} onPress={() => setTab(t)} style={{ marginRight: 24, paddingBottom: 12, borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: tab === t ? PRIMARY : "#9CA3AF" }}>
+                    {t.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {tab === "categorias" && (
+              <TouchableOpacity
+                onPress={handleImportCsv}
+                disabled={isImporting}
+                style={{ marginBottom: 12, width: 36, height: 36, borderRadius: 18, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center" }}
+              >
+                {isImporting
+                  ? <ActivityIndicator size="small" color={PRIMARY} />
+                  : <CloudUpload size={18} color={PRIMARY} />
+                }
               </TouchableOpacity>
-            ))}
+            )}
           </View>
 
           {isLoading ? (
@@ -268,8 +293,6 @@ export function ProfessorCourseDetailScreen() {
             <CategoriasTab
               categoryData={categoryData}
               courseId={courseId!}
-              onImport={handleImportCsv}
-              isImporting={isImporting}
               onCreateCategory={() => setIsCreateCatOpen(true)}
             />
           )}
@@ -322,6 +345,23 @@ export function ProfessorCourseDetailScreen() {
           </View>
         </DrawerContent>
       </Drawer>
+
+      <Drawer open={isEnrollOpen} onOpenChange={(o) => { if (!o) setIsEnrollOpen(false); }}>
+        <DrawerContent>
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Estudiantes del curso</DrawerTitle>
+          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
+            <View className="flex-row items-center mb-6">
+              <Button variant="secondary" onPress={() => setIsEnrollOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                <X size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">ESTUDIANTES</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            {courseId && <EnrollStudentsForm courseId={courseId} />}
+          </View>
+        </DrawerContent>
+      </Drawer>
+
     </View>
   );
 }
@@ -368,40 +408,15 @@ function EvaluacionesTab({ evalList, courseId, onCreateEval }: { evalList: EvalL
 function CategoriasTab({
   categoryData,
   courseId,
-  onImport,
-  isImporting,
   onCreateCategory,
 }: {
   categoryData: CategoryWithData[];
   courseId: string;
-  onImport: () => void;
-  isImporting: boolean;
   onCreateCategory: () => void;
 }) {
   const router = useRouter();
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 }}>
-      <TouchableOpacity
-        onPress={onImport}
-        disabled={isImporting}
-        style={{ borderWidth: 1.5, borderColor: PRIMARY, borderStyle: "dashed", borderRadius: 16, padding: 20, alignItems: "center", marginBottom: 16, backgroundColor: PRIMARY_LIGHT }}
-      >
-        {isImporting ? (
-          <ActivityIndicator color={PRIMARY} />
-        ) : (
-          <>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-              <CloudUpload size={22} color="#fff" />
-            </View>
-            <Text style={{ color: PRIMARY, fontWeight: "700", fontSize: 15, marginBottom: 4 }}>Importar desde Brightspace</Text>
-            <Text style={{ color: "#9CA3AF", fontSize: 12, marginBottom: 14 }}>CSV o JSON con categorías y grupos</Text>
-            <View style={{ backgroundColor: PRIMARY, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 }}>
-              <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Seleccionar archivo</Text>
-            </View>
-          </>
-        )}
-      </TouchableOpacity>
-
       {categoryData.map((cd) => (
         <View key={cd.category._id}>
           <TouchableOpacity
