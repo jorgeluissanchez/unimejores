@@ -1,9 +1,8 @@
+import { Text } from "@/core/components/ui/text";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
-import { ProfessorProvider } from "@/features/professor/presentation/context/professor-context";
 import { ProfessorReportsScreen } from "@/features/professor/presentation/screens/professor-reports-screen";
 import React from "react";
-import { SafeAreaView, View } from "react-native";
-import { Text } from "@/core/components/ui/text";
+import { SafeAreaView } from "react-native";
 
 export default function ReportsTab() {
   const { loggedUser } = useAuth();
@@ -16,9 +15,5 @@ export default function ReportsTab() {
     );
   }
 
-  return (
-    <ProfessorProvider>
-      <ProfessorReportsScreen />
-    </ProfessorProvider>
-  );
+  return <ProfessorReportsScreen />;
 }

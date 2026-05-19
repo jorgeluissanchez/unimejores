@@ -3,6 +3,7 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer"
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
+import { parseCsvLine } from "@/core/lib/utils";
 import { Category, Group, GroupMember } from "@/features/professor/domain/entities/professor";
 import { GroupModal } from "@/features/professor/presentation/components/group-modal";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
@@ -268,16 +269,3 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
   );
 }
 
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; continue; }
-    current += ch;
-  }
-  result.push(current.trim());
-  return result;
-}

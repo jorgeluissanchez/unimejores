@@ -32,7 +32,7 @@ export class AuthRepositoryImpl implements AuthRepository {
       if (!userId || !email) return null;
       const role = await this.prefs.retrieveData<string>("role").catch(() => null);
       const name = await this.prefs.retrieveData<string>("name").catch(() => undefined);
-      return { userId, email, role, name };
+      return { userId, email, role, name: name ?? undefined };
     } catch {
       return null;
     }

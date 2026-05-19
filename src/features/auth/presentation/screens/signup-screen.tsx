@@ -26,7 +26,7 @@ export default function SignupScreen() {
             <ArrowLeft color="#1F265E" height={20} width={20} />
           </Button>
           <Text variant="h2" className="text-center">
-            Porfavor Registrese
+            Por favor regístrese
           </Text>
           <View className="h-10 w-10" />
         </View>

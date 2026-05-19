@@ -123,7 +123,7 @@ export default function SettingScreen() {
         <Text className="mt-3 text-[#E6E7F2]/70">
           Promedio General:
         </Text>
-          <Text className="text-[#E6E7F2]">{generalAvg !== null ? generalAvg : "5"}</Text>
+          <Text className="text-[#E6E7F2]">{generalAvg !== null ? generalAvg : "—"}</Text>
       </View>
 
       <View className="items-center">

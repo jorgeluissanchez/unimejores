@@ -40,7 +40,6 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         headers: { "Content-Type": "application/json; charset=UTF-8" },
         body: JSON.stringify({ email, password }),
       });
-       console.log("Respuesta de login:", JSON.stringify({ email, password }));
 
       if (response.ok) {
         const data = await response.json();
@@ -162,7 +161,6 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await this.prefs.removeData("refreshToken");
         await this.prefs.removeData("userId");
         await this.prefs.removeData("email");
-        console.log("Sesión cerrada correctamente");
         return Promise.resolve();
       } else {
         const body = await response.json();
@@ -189,7 +187,6 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         const data = await response.json();
         const newToken = data["accessToken"];
         await this.prefs.storeData("token", newToken);
-        console.log("Token renovado correctamente");
         return true;
       } else {
         const body = await response.json();

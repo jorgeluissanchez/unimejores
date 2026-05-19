@@ -2,6 +2,7 @@ import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
+import { parseCsvLine } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import {
   Category,
@@ -455,7 +456,7 @@ function CategoriasTab({
         onPress={onCreateCategory}
         style={{ backgroundColor: PRIMARY, borderRadius: 30, paddingVertical: 16, alignItems: "center", marginTop: 24 }}
       >
-        <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UN NUEVA CATEGORIA</Text>
+        <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UNA NUEVA CATEGORÍA</Text>
       </TouchableOpacity>
     </View>
   );
@@ -472,16 +473,3 @@ function formatDate(dateStr: string) {
   }
 }
 
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; continue; }
-    current += ch;
-  }
-  result.push(current.trim());
-  return result;
-}

@@ -1,9 +1,9 @@
-import { EvaluationRemoteDataSourceImpl } from "@/features/evaluation/data/datasources/evaluation-remote-data-source-impl";
+import { EvaluationDataSource } from "@/features/evaluation/data/datasources/evaluation-data-source";
 import { Criterium, Evaluation, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { EvaluationRepository } from "@/features/evaluation/domain/repositories/evaluation-repository";
 
 export class EvaluationRepositoryImpl implements EvaluationRepository {
-  constructor(private ds: EvaluationRemoteDataSourceImpl) {}
+  constructor(private ds: EvaluationDataSource) {}
 
   getEvaluationByGroup(groupId: string): Promise<Evaluation | null> {
     return this.ds.getEvaluationByGroup(groupId);

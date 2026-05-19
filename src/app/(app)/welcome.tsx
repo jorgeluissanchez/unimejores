@@ -44,8 +44,8 @@ export default function StudentWelcomeScreen() {
 
           <Text className="text-gray-200 text-center mt-6 text-[16px] leading-7 italic">
             {isProfessor
-              ? "Es hora de que mires como los feed back cambian tu aula."
-              : "Es hora de que tus feed back cambien tu aula."}
+              ? "Es hora de que mires como los feedbacks cambian tu aula."
+              : "Es hora de que tus feedbacks cambien tu aula."}
           </Text>
 
           <View className="mt-8 items-center justify-center">

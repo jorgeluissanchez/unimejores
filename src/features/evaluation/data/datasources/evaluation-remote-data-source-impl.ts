@@ -1,6 +1,7 @@
 import { ILocalPreferences } from "@/core/storage/i-local-preferences";
 import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthRemoteDataSourceImpl } from "@/features/auth/data/datasources/auth-remote-data-source-impl";
+import { EvaluationDataSource } from "@/features/evaluation/data/datasources/evaluation-data-source";
 import {
   Criterium,
   Evaluation,
@@ -8,7 +9,7 @@ import {
   ResultEvaluation,
 } from "@/features/evaluation/domain/entities/evaluation";
 
-export class EvaluationRemoteDataSourceImpl {
+export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
   private readonly baseUrl: string;
   private prefs: ILocalPreferences;
 

@@ -71,7 +71,11 @@ export class LocalPreferencesAsyncStorage implements ILocalPreferences {
     }
   }
 
-  clearAll(): Promise<void> {
-    throw new Error("Método no implementado.");
+  async clearAll(): Promise<void> {
+    try {
+      await AsyncStorage.clear();
+    } catch (e) {
+      console.error("Error clearing all storage", e);
+    }
   }
 }
