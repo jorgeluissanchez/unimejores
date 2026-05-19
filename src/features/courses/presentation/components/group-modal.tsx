@@ -131,6 +131,8 @@ function EditContent({ group, courseId, categoryId, onClose, onUpdated }: EditPr
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -230,35 +232,46 @@ function EditContent({ group, courseId, categoryId, onClose, onUpdated }: EditPr
         <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
       </Button>
 
-      <Button
-        variant="destructive"
-        onPress={() =>
-          Alert.alert(
-            "Eliminar grupo",
-            `¿Eliminar "${group.name}"? Esta acción no se puede deshacer.`,
-            [
-              { text: "Cancelar", style: "cancel" },
-              {
-                text: "Eliminar",
-                style: "destructive",
-                onPress: async () => {
-                  try {
-                    await deleteGroup(group._id);
-                    onUpdated();
-                    onClose();
-                  } catch (e: any) {
-                    Alert.alert("Error", e.message ?? "No se pudo eliminar el grupo.");
-                  }
-                },
-              },
-            ]
-          )
-        }
-        className="rounded-full w-full"
-        style={{ paddingVertical: 18 }}
-      >
-        <Text>ELIMINAR GRUPO</Text>
-      </Button>
+      {confirmDelete ? (
+        <View className="gap-2">
+          <Text className="text-center text-sm text-destructive font-semibold">¿Eliminar "{group.name}"?</Text>
+          <View className="flex-row gap-2">
+            <Button variant="secondary" onPress={() => setConfirmDelete(false)} className="flex-1 rounded-full" style={{ paddingVertical: 14 }} disabled={isDeleting}>
+              <Text>Cancelar</Text>
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1 rounded-full"
+              style={{ paddingVertical: 14 }}
+              disabled={isDeleting}
+              onPress={async () => {
+                try {
+                  setIsDeleting(true);
+                  await deleteGroup(group._id);
+                  onUpdated();
+                  onClose();
+                } catch (e: any) {
+                  setConfirmDelete(false);
+                  Alert.alert("Error", e.message ?? "No se pudo eliminar el grupo.");
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+            >
+              <Text>{isDeleting ? "..." : "Eliminar"}</Text>
+            </Button>
+          </View>
+        </View>
+      ) : (
+        <Button
+          variant="destructive"
+          onPress={() => setConfirmDelete(true)}
+          className="rounded-full w-full"
+          style={{ paddingVertical: 18 }}
+        >
+          <Text>ELIMINAR GRUPO</Text>
+        </Button>
+      )}
 
       {/* Combobox añadir miembro */}
       <View className="gap-1.5" style={{ zIndex: 10 }}>

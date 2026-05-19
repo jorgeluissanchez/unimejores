@@ -1,30 +1,29 @@
 import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
-import { Input } from "@/core/components/ui/input";
-import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
-import { Textarea } from "@/core/components/ui/textarea";
 import { parseCsvLine } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
-import { Category, Group } from "@/features/courses/domain/entities/course";
+import { Category } from "@/features/courses/domain/entities/course";
+import { CategoryDrawer } from "@/features/courses/presentation/components/category-drawer";
+import { CategoriasTab, CategoryWithData } from "@/features/courses/presentation/components/categorias-tab";
+import { EvaluacionesTab, EvalListItem } from "@/features/courses/presentation/components/evaluaciones-tab";
 import { AddCategoryForm } from "@/features/courses/presentation/components/forms/add-category-form";
 import { EnrollStudentsForm } from "@/features/courses/presentation/components/forms/enroll-students-form";
 import { UpdateCourseForm } from "@/features/courses/presentation/components/forms/update-course-form";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
-import { ProfessorCategoryGroupsScreen } from "@/features/courses/presentation/screens/professor-category-groups-screen";
-import { Evaluation, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
+import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { CreateEvaluationForm } from "@/features/evaluation/presentation/components/forms/create-evaluation-form";
+import { EditEvaluationForm } from "@/features/evaluation/presentation/components/forms/edit-evaluation-form";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CloudUpload, Edit, SquarePen, Users, X } from "lucide-react-native";
+import { ArrowLeft, CloudUpload, Edit, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Keyboard,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
@@ -34,17 +33,6 @@ import { SvgXml } from "react-native-svg";
 
 const PRIMARY = "#818CF8";
 const PRIMARY_LIGHT = "rgba(129,140,248,0.15)";
-
-type CategoryWithData = {
-  category: Category;
-  evaluation: Evaluation | null;
-  groups: Group[];
-};
-
-type EvalListItem = {
-  evaluation: Evaluation;
-  categoryName: string;
-};
 
 export function ProfessorCourseDetailScreen() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
@@ -62,13 +50,7 @@ export function ProfessorCourseDetailScreen() {
     addMemberToGroup,
   } = useCourses();
 
-  const {
-    myCriteria,
-    getEvaluationByCategory,
-    getResultsByGroup,
-    updateEvaluation,
-    deleteEvaluation,
-  } = useEvaluation();
+  const { myCriteria, getEvaluationByCategory, getResultsByGroup } = useEvaluation();
 
   const course = useMemo(() => courses.find((c) => c._id === courseId), [courses, courseId]);
 
@@ -82,7 +64,7 @@ export function ProfessorCourseDetailScreen() {
   const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   const load = useCallback(async () => {
     if (!courseId || !loggedUser) return;
@@ -297,18 +279,22 @@ export function ProfessorCourseDetailScreen() {
               <ActivityIndicator color={PRIMARY} size="large" />
             </View>
           ) : tab === "evaluaciones" ? (
-            <EvaluacionesTab evalList={evalList} courseId={courseId!} onCreateEval={() => setIsCreateEvalOpen(true)} onEditEval={(item) => setEditEval(item)} />
+            <EvaluacionesTab
+              evalList={evalList}
+              onCreateEval={() => setIsCreateEvalOpen(true)}
+              onEditEval={setEditEval}
+            />
           ) : (
             <CategoriasTab
               categoryData={categoryData}
-              courseId={courseId!}
               onCreateCategory={() => setIsCreateCatOpen(true)}
-              onSelectCategory={(id) => setSelectedCategoryId(id)}
+              onSelectCategory={setSelectedCategory}
             />
           )}
         </View>
       </ScrollView>
 
+      {/* Crear evaluación */}
       <Drawer open={isCreateEvalOpen} onOpenChange={(o) => { if (!o) setIsCreateEvalOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear evaluación</DrawerTitle>
@@ -325,6 +311,7 @@ export function ProfessorCourseDetailScreen() {
         </DrawerContent>
       </Drawer>
 
+      {/* Editar evaluación */}
       <Drawer open={!!editEval} onOpenChange={(o) => { if (!o) setEditEval(null); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar evaluación</DrawerTitle>
@@ -337,18 +324,17 @@ export function ProfessorCourseDetailScreen() {
               <View style={{ width: 50 }} />
             </View>
             {editEval && (
-              <EditEvaluationInline
+              <EditEvaluationForm
                 evaluation={editEval.evaluation}
                 categoryName={editEval.categoryName}
-                onCancel={async () => { setEditEval(null); await load(); }}
-                updateEvaluation={updateEvaluation}
-                deleteEvaluation={deleteEvaluation}
+                onDone={async () => { setEditEval(null); await load(); }}
               />
             )}
           </View>
         </DrawerContent>
       </Drawer>
 
+      {/* Crear categoría */}
       <Drawer open={isCreateCatOpen} onOpenChange={(o) => { if (!o) setIsCreateCatOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear categoría</DrawerTitle>
@@ -365,6 +351,7 @@ export function ProfessorCourseDetailScreen() {
         </DrawerContent>
       </Drawer>
 
+      {/* Editar curso */}
       <Drawer open={isEditCourseOpen} onOpenChange={(o) => { if (!o) setIsEditCourseOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar curso</DrawerTitle>
@@ -381,6 +368,7 @@ export function ProfessorCourseDetailScreen() {
         </DrawerContent>
       </Drawer>
 
+      {/* Estudiantes */}
       <Drawer open={isEnrollOpen} onOpenChange={(o) => { if (!o) setIsEnrollOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Estudiantes del curso</DrawerTitle>
@@ -397,190 +385,16 @@ export function ProfessorCourseDetailScreen() {
         </DrawerContent>
       </Drawer>
 
-      <Drawer open={!!selectedCategoryId} onOpenChange={(o) => { if (!o) setSelectedCategoryId(null); }}>
-        <DrawerContent>
-          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Detalle de categoría</DrawerTitle>
-          {selectedCategoryId && courseId && (
-            <ProfessorCategoryGroupsScreen
-              courseId={courseId}
-              categoryId={selectedCategoryId}
-              onClose={() => { setSelectedCategoryId(null); load(); }}
-            />
-          )}
-        </DrawerContent>
-      </Drawer>
-    </View>
-  );
-}
-
-// ─── EVALUACIONES TAB ─────────────────────────────────────────────────────────
-
-function EvaluacionesTab({ evalList, courseId, onCreateEval, onEditEval }: { evalList: EvalListItem[]; courseId: string; onCreateEval: () => void; onEditEval: (item: EvalListItem) => void }) {
-  return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 }}>
-      {evalList.length === 0 ? (
-        <View style={{ paddingVertical: 40, alignItems: "center" }}>
-          <Text style={{ color: "#9CA3AF" }}>Sin evaluaciones aún</Text>
-        </View>
-      ) : (
-        evalList.map((item) => (
-          <View key={item.evaluation._id}>
-            <TouchableOpacity onPress={() => onEditEval(item)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}>
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>
-                <SquarePen size={20} color={PRIMARY} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.evaluation.title}</Text>
-                <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
-                  {item.categoryName}{item.evaluation.end_date ? ` · ${formatDate(item.evaluation.end_date)}` : ""}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
-          </View>
-        ))
+      {/* Categoría (grupos + editar + eliminar) */}
+      {selectedCategory && courseId && (
+        <CategoryDrawer
+          courseId={courseId}
+          category={selectedCategory}
+          open={!!selectedCategory}
+          onClose={() => setSelectedCategory(null)}
+          onUpdated={() => { setSelectedCategory(null); load(); }}
+        />
       )}
-      <Button onPress={onCreateEval} style={{ marginTop: 16 }}>
-        <Text>CREAR UNA NUEVA EVALUACIÓN</Text>
-      </Button>
     </View>
   );
-}
-
-// ─── Inline edit evaluation form ──────────────────────────────────────────────
-
-function EditEvaluationInline({
-  evaluation,
-  categoryName,
-  onCancel,
-  updateEvaluation,
-  deleteEvaluation,
-}: {
-  evaluation: Evaluation;
-  categoryName: string;
-  onCancel: () => Promise<void>;
-  updateEvaluation: (ev: Evaluation) => Promise<void>;
-  deleteEvaluation: (id: string) => Promise<void>;
-}) {
-  const [title, setTitle] = useState(evaluation.title);
-  const [description, setDescription] = useState(evaluation.description ?? "");
-  const [endDate, setEndDate] = useState((evaluation.end_date ?? "").split("T")[0]);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSave = async () => {
-    Keyboard.dismiss();
-    if (!title.trim()) return;
-    try {
-      setIsSaving(true);
-      await updateEvaluation({ ...evaluation, title: title.trim(), description: description.trim(), end_date: endDate.trim() });
-      await onCancel();
-    } catch (e: any) {
-      Alert.alert("Error", e.message ?? "No se pudo guardar.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      "Eliminar evaluación",
-      `¿Eliminar "${evaluation.title}"? Esta acción no se puede deshacer.`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteEvaluation(evaluation._id);
-              await onCancel();
-            } catch (e: any) {
-              Alert.alert("Error", e.message ?? "No se pudo eliminar la evaluación.");
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  return (
-    <View className="gap-4">
-      <View style={{ backgroundColor: "#F3F4F6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-        <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" }}>Categoría</Text>
-        <Text style={{ fontSize: 14, color: "#374151", fontWeight: "600", marginTop: 2 }}>{categoryName}</Text>
-      </View>
-      <View className="gap-1.5">
-        <Label>Título</Label>
-        <Input value={title} onChangeText={setTitle} placeholder="Título de la evaluación" />
-      </View>
-      <View className="gap-1.5">
-        <Label>Descripción</Label>
-        <Textarea value={description} onChangeText={setDescription} placeholder="Descripción (opcional)" />
-      </View>
-      <View className="gap-1.5">
-        <Label>Fecha de finalización (YYYY-MM-DD)</Label>
-        <Input value={endDate} onChangeText={setEndDate} placeholder="2025-12-31" />
-      </View>
-      <Button onPress={handleSave} disabled={isSaving} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
-        <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
-      </Button>
-      <Button variant="destructive" onPress={handleDelete} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
-        <Text>ELIMINAR EVALUACIÓN</Text>
-      </Button>
-    </View>
-  );
-}
-
-// ─── CATEGORIAS TAB ───────────────────────────────────────────────────────────
-
-function CategoriasTab({
-  categoryData,
-  courseId,
-  onCreateCategory,
-  onSelectCategory,
-}: {
-  categoryData: CategoryWithData[];
-  courseId: string;
-  onCreateCategory: () => void;
-  onSelectCategory: (categoryId: string) => void;
-}) {
-  return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 }}>
-      {categoryData.map((cd) => (
-        <View key={cd.category._id}>
-          <TouchableOpacity
-            onPress={() => onSelectCategory(cd.category._id)}
-            style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18 }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>
-              <SquarePen size={20} color={PRIMARY} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{cd.category.name}</Text>
-              <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
-                {cd.groups.length} {cd.groups.length === 1 ? "Grupo" : "Grupos"}
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
-        </View>
-      ))}
-
-      <TouchableOpacity
-        onPress={onCreateCategory}
-        style={{ backgroundColor: PRIMARY, borderRadius: 30, paddingVertical: 16, alignItems: "center", marginTop: 24 }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UNA NUEVA CATEGORÍA</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function formatDate(dateStr: string) {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
 }

@@ -39,6 +39,8 @@ export function ProfessorCategoryGroupsScreen({ courseId, categoryId, onClose }:
   const [groups, setGroups] = useState<GroupWithMembers[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
@@ -169,33 +171,43 @@ export function ProfessorCategoryGroupsScreen({ courseId, categoryId, onClose }:
         >
           <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
         </Button>
-        <Button
-          variant="destructive"
-          onPress={() =>
-            Alert.alert(
-              "Eliminar categoría",
-              `¿Eliminar "${originalName}"? Esta acción no se puede deshacer.`,
-              [
-                { text: "Cancelar", style: "cancel" },
-                {
-                  text: "Eliminar",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      await deleteCategory(categoryId);
-                      onClose();
-                    } catch (e: any) {
-                      Alert.alert("Error", e.message ?? "No se pudo eliminar.");
-                    }
-                  },
-                },
-              ]
-            )
-          }
-          className="rounded-full w-full mt-3"
-        >
-          <Text>ELIMINAR CATEGORÍA</Text>
-        </Button>
+        {confirmDelete ? (
+          <View className="gap-2 mt-3">
+            <Text className="text-center text-sm text-destructive font-semibold">¿Eliminar "{originalName}"?</Text>
+            <View className="flex-row gap-2">
+              <Button variant="secondary" onPress={() => setConfirmDelete(false)} className="flex-1 rounded-full" disabled={isDeleting}>
+                <Text>Cancelar</Text>
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-full"
+                disabled={isDeleting}
+                onPress={async () => {
+                  try {
+                    setIsDeleting(true);
+                    await deleteCategory(categoryId);
+                    onClose();
+                  } catch (e: any) {
+                    setConfirmDelete(false);
+                    Alert.alert("Error", e.message ?? "No se pudo eliminar.");
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+              >
+                <Text>{isDeleting ? "..." : "Eliminar"}</Text>
+              </Button>
+            </View>
+          </View>
+        ) : (
+          <Button
+            variant="destructive"
+            onPress={() => setConfirmDelete(true)}
+            className="rounded-full w-full mt-3"
+          >
+            <Text>ELIMINAR CATEGORÍA</Text>
+          </Button>
+        )}
       </View>
 
       {/* ── Modal: Crear grupo ── */}

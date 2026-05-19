@@ -9,7 +9,7 @@ import { GroupModal } from "@/features/courses/presentation/components/group-mod
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
-import { CloudUpload, Plus, SquarePen, X } from "lucide-react-native";
+import { SquarePen, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Keyboard, TouchableOpacity, View } from "react-native";
 
@@ -28,6 +28,7 @@ type Props = {
 export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }: Props) {
   const {
     updateCategory,
+    deleteCategory,
     getGroupsByCategory,
     getGroupMembersDetail,
     getUserByEmail,
@@ -41,6 +42,8 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
   const [groups, setGroups] = useState<GroupWithMembers[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
@@ -170,18 +173,17 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
                 variant="secondary"
                 onPress={handleImportCsv}
                 disabled={isImporting}
-                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                className="rounded-full"
+                style={{ paddingHorizontal: 16, paddingVertical: 10 }}
               >
-                {isImporting
-                  ? <ActivityIndicator size="small" color={PRIMARY} />
-                  : <CloudUpload size={18} color="#1F265E" />
-                }
+                <Text>{isImporting ? "..." : "Importar"}</Text>
               </Button>
               <Button
                 onPress={() => setIsCreateOpen(true)}
-                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                className="rounded-full"
+                style={{ paddingHorizontal: 16, paddingVertical: 10 }}
               >
-                <Plus size={18} color="#fff" />
+                <Text>Añadir</Text>
               </Button>
             </View>
 
@@ -240,6 +242,46 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
             >
               <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
             </Button>
+
+            {/* Eliminar categoría */}
+            {confirmDelete ? (
+              <View className="gap-2 mt-3">
+                <Text className="text-center text-sm text-destructive font-semibold">¿Eliminar "{originalName}"?</Text>
+                <View className="flex-row gap-2">
+                  <Button variant="secondary" onPress={() => setConfirmDelete(false)} className="flex-1 rounded-full" disabled={isDeleting}>
+                    <Text>Cancelar</Text>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1 rounded-full"
+                    disabled={isDeleting}
+                    onPress={async () => {
+                      try {
+                        setIsDeleting(true);
+                        await deleteCategory(category._id);
+                        onUpdated();
+                      } catch (e: any) {
+                        setConfirmDelete(false);
+                        Alert.alert("Error", e.message ?? "No se pudo eliminar.");
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }}
+                  >
+                    <Text>{isDeleting ? "..." : "Eliminar"}</Text>
+                  </Button>
+                </View>
+              </View>
+            ) : (
+              <Button
+                variant="destructive"
+                onPress={() => setConfirmDelete(true)}
+                className="rounded-full w-full mt-3"
+                style={{ paddingVertical: 18 }}
+              >
+                <Text>ELIMINAR CATEGORÍA</Text>
+              </Button>
+            )}
           </View>
         </DrawerContent>
       </Drawer>
