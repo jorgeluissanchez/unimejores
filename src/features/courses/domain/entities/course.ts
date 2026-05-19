@@ -6,6 +6,8 @@ export type Course = {
   created_by: string;
 };
 
+export type NewCourse = Omit<Course, "_id">;
+
 export type UserCourse = {
   _id: string;
   course_id: string;
@@ -19,11 +21,15 @@ export type Category = {
   course_id: string;
 };
 
+export type NewCategory = Omit<Category, "_id">;
+
 export type Group = {
   _id: string;
   name: string;
   category_id: string;
 };
+
+export type NewGroup = { name: string; category_id: string };
 
 export type UserGroup = {
   _id: string;
@@ -37,6 +43,20 @@ export type CourseUser = {
   name: string;
   email: string;
   role: string;
+};
+
+export type StudentEnrollment = {
+  userCourseId: string;
+  userId: string;
+  name: string;
+  email: string;
+};
+
+export type GroupMember = {
+  userGroupId: string;
+  userId: string;
+  name: string;
+  email: string;
 };
 
 export type PendingEvalData = {

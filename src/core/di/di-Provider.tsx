@@ -8,10 +8,6 @@ import { CourseRemoteDataSourceImpl } from "@/features/courses/data/datasources/
 import { CourseRepositoryImpl } from "@/features/courses/data/repositories/course-repository-impl";
 import { EvaluationRemoteDataSourceImpl } from "@/features/evaluation/data/datasources/evaluation-remote-data-source-impl";
 import { EvaluationRepositoryImpl } from "@/features/evaluation/data/repositories/evaluation-repository-impl";
-import { ProfessorRemoteDataSourceImpl } from "@/features/professor/data/datasources/professor-remote-data-source-impl";
-import { ProfessorRepositoryImpl } from "@/features/professor/data/repositories/professor-repository-impl";
-import { ProductRemoteDataSourceImpl } from "@/features/products/data/datasources/product-remote-data-source-impl";
-import { ProductRepositoryImpl } from "@/features/products/data/repositories/product-repository-impl";
 
 const DIContext = createContext<Container | null>(null);
 
@@ -24,11 +20,6 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         c.register(TOKENS.AuthRemoteDS, authDS)
             .register(TOKENS.AuthRepo, authRepo);
 
-        const productDS = new ProductRemoteDataSourceImpl(authDS);
-        const productRepo = new ProductRepositoryImpl(productDS);
-        c.register(TOKENS.ProductRemoteDS, productDS)
-            .register(TOKENS.ProductRepo, productRepo);
-
         const courseDS = new CourseRemoteDataSourceImpl(authDS);
         const courseRepo = new CourseRepositoryImpl(courseDS);
         c.register(TOKENS.CourseRemoteDS, courseDS)
@@ -38,11 +29,6 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         const evaluationRepo = new EvaluationRepositoryImpl(evaluationDS);
         c.register(TOKENS.EvaluationRemoteDS, evaluationDS)
             .register(TOKENS.EvaluationRepo, evaluationRepo);
-
-        const professorDS = new ProfessorRemoteDataSourceImpl(authDS);
-        const professorRepo = new ProfessorRepositoryImpl(professorDS);
-        c.register(TOKENS.ProfessorRemoteDS, professorDS)
-            .register(TOKENS.ProfessorRepo, professorRepo);
 
         return c;
     }, []);

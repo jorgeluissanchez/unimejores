@@ -1,31 +1,51 @@
 import { CourseDataSource } from "@/features/courses/data/datasources/course-data-source";
-import { Category, Course, CourseUser, Group, PendingEvalData, UserGroup } from "@/features/courses/domain/entities/course";
+import {
+  Category,
+  Course,
+  CourseUser,
+  Group,
+  GroupMember,
+  NewCategory,
+  NewCourse,
+  NewGroup,
+  PendingEvalData,
+  StudentEnrollment,
+  UserGroup,
+} from "@/features/courses/domain/entities/course";
 import { CourseRepository } from "@/features/courses/domain/repositories/course-repository";
 
 export class CourseRepositoryImpl implements CourseRepository {
   constructor(private ds: CourseDataSource) {}
 
-  getMyCourses(userId: string): Promise<Course[]> {
-    return this.ds.getMyCourses(userId);
-  }
+  getMyEnrolledCourses(userId: string): Promise<Course[]> { return this.ds.getMyEnrolledCourses(userId); }
+  getPendingEvaluations(userId: string, courses: Course[]): Promise<PendingEvalData[]> { return this.ds.getPendingEvaluations(userId, courses); }
+  getGroupByCategory(categoryId: string, userId: string): Promise<Group | null> { return this.ds.getGroupByCategory(categoryId, userId); }
+  getMembersByGroupIds(groupId: string): Promise<UserGroup[]> { return this.ds.getMembersByGroupIds(groupId); }
+  getUserById(userId: string): Promise<CourseUser | null> { return this.ds.getUserById(userId); }
 
-  getCategoriesByCourse(courseId: string): Promise<Category[]> {
-    return this.ds.getCategoriesByCourse(courseId);
-  }
+  getMyCreatedCourses(userId: string): Promise<Course[]> { return this.ds.getMyCreatedCourses(userId); }
+  addCourse(course: NewCourse): Promise<void> { return this.ds.addCourse(course); }
+  updateCourse(course: Course): Promise<void> { return this.ds.updateCourse(course); }
+  deleteCourse(id: string): Promise<void> { return this.ds.deleteCourse(id); }
 
-  getGroupByCategory(categoryId: string, userId: string): Promise<Group | null> {
-    return this.ds.getGroupByCategory(categoryId, userId);
-  }
+  getCategoriesByCourse(courseId: string): Promise<Category[]> { return this.ds.getCategoriesByCourse(courseId); }
+  addCategory(category: NewCategory): Promise<void> { return this.ds.addCategory(category); }
+  updateCategory(category: Category): Promise<void> { return this.ds.updateCategory(category); }
+  deleteCategory(id: string): Promise<void> { return this.ds.deleteCategory(id); }
 
-  getMembersByGroup(groupId: string): Promise<UserGroup[]> {
-    return this.ds.getMembersByGroup(groupId);
-  }
+  getGroupsByCategory(categoryId: string): Promise<Group[]> { return this.ds.getGroupsByCategory(categoryId); }
+  addGroup(group: NewGroup): Promise<void> { return this.ds.addGroup(group); }
+  updateGroup(group: Group): Promise<void> { return this.ds.updateGroup(group); }
+  deleteGroup(groupId: string): Promise<void> { return this.ds.deleteGroup(groupId); }
 
-  getUserById(userId: string): Promise<CourseUser | null> {
-    return this.ds.getUserById(userId);
-  }
+  getGroupMembersDetail(groupId: string): Promise<GroupMember[]> { return this.ds.getGroupMembersDetail(groupId); }
+  addMemberToGroup(userId: string, groupId: string): Promise<void> { return this.ds.addMemberToGroup(userId, groupId); }
+  removeMemberFromGroup(userGroupId: string): Promise<void> { return this.ds.removeMemberFromGroup(userGroupId); }
+  getMembersByGroup(groupId: string): Promise<StudentEnrollment[]> { return this.ds.getMembersByGroup(groupId); }
 
-  getPendingEvaluations(userId: string, courses: Course[]): Promise<PendingEvalData[]> {
-    return this.ds.getPendingEvaluations(userId, courses);
-  }
+  getStudentsInCourse(courseId: string): Promise<StudentEnrollment[]> { return this.ds.getStudentsInCourse(courseId); }
+  getAvailableStudents(courseId: string): Promise<StudentEnrollment[]> { return this.ds.getAvailableStudents(courseId); }
+  addStudentToCourse(courseId: string, userId: string): Promise<void> { return this.ds.addStudentToCourse(courseId, userId); }
+  removeStudentFromCourse(userCourseId: string): Promise<void> { return this.ds.removeStudentFromCourse(userCourseId); }
+  getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null> { return this.ds.getUserByEmail(email); }
 }

@@ -1,4 +1,4 @@
-import { ProfessorCategoryGroupsScreen } from "@/features/professor/presentation/screens/professor-category-groups-screen";
+import { ProfessorCategoryGroupsScreen } from "@/features/courses/presentation/screens/professor-category-groups-screen";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 

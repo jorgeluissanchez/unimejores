@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(Remove-Item \"c:/Users/Administrador/Documents/mobil/unimejores/src/features/auth/data/datasources/i-auth-data-source.ts\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(dir \"c:\\\\Users\\\\Administrador\\\\Documents\\\\mobil\\\\unimejores\" /B)"
     ]
   }
 }

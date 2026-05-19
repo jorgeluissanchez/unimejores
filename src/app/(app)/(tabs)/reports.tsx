@@ -1,6 +1,6 @@
 import { Text } from "@/core/components/ui/text";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
-import { ProfessorReportsScreen } from "@/features/professor/presentation/screens/professor-reports-screen";
+import { ReportsScreen } from "@/features/reports/presentation/screens/reports-screen";
 import React from "react";
 import { SafeAreaView } from "react-native";
 
@@ -15,5 +15,5 @@ export default function ReportsTab() {
     );
   }
 
-  return <ProfessorReportsScreen />;
+  return <ReportsScreen />;
 }
