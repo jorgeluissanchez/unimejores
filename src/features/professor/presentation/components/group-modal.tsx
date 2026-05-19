@@ -12,9 +12,9 @@ import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Group, GroupMember } from "@/features/professor/domain/entities/professor";
-import { X, Minus } from "lucide-react-native";
+import { Minus, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Keyboard, View } from "react-native";
+import { ActivityIndicator, Alert, Keyboard, Platform, ScrollView, View } from "react-native";
 import { useProfessor } from "../context/professor-context";
 
 const PRIMARY = "#818CF8";
@@ -46,14 +46,25 @@ type Props = CreateProps | EditProps;
 export function GroupModal(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={(o) => { if (!o) props.onClose(); }}>
-      <DialogContent className="min-w-[340px] max-h-[85vh]" style={{ overflow: "scroll" }}>
+      <DialogContent
+        className="p-0 gap-0 sm:w-[480px] sm:max-w-[480px]"
+      >
         <DialogTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>
           {props.mode === "create" ? "Crear grupo" : "Editar grupo"}
         </DialogTitle>
-        {props.mode === "create"
-          ? <CreateContent {...props} />
-          : <EditContent {...props} />
-        }
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 24 }}
+          style={Platform.OS === "web"
+            ? { maxHeight: "80vh", scrollbarWidth: "none", msOverflowStyle: "none" } as any
+            : undefined}
+          keyboardShouldPersistTaps="handled"
+        >
+          {props.mode === "create"
+            ? <CreateContent {...props} />
+            : <EditContent {...props} />
+          }
+        </ScrollView>
       </DialogContent>
     </Dialog>
   );

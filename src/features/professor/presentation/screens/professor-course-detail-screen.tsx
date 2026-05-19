@@ -14,9 +14,10 @@ import { CreateEvaluationForm } from "@/features/professor/presentation/componen
 import { EnrollStudentsForm } from "@/features/professor/presentation/components/enroll-students-form";
 import { UpdateCourseForm } from "@/features/professor/presentation/components/update-course-form";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
+import { ProfessorCategoryGroupsScreen } from "@/features/professor/presentation/screens/professor-category-groups-screen";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
-import { RelativePathString, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, CloudUpload, Edit, SquarePen, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -74,6 +75,7 @@ export function ProfessorCourseDetailScreen() {
   const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!courseId || !loggedUser) return;
@@ -294,6 +296,7 @@ export function ProfessorCourseDetailScreen() {
               categoryData={categoryData}
               courseId={courseId!}
               onCreateCategory={() => setIsCreateCatOpen(true)}
+              onSelectCategory={(id) => setSelectedCategoryId(id)}
             />
           )}
         </View>
@@ -362,6 +365,19 @@ export function ProfessorCourseDetailScreen() {
         </DrawerContent>
       </Drawer>
 
+      <Drawer open={!!selectedCategoryId} onOpenChange={(o) => { if (!o) setSelectedCategoryId(null); }}>
+        <DrawerContent>
+          <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Detalle de categoría</DrawerTitle>
+          {selectedCategoryId && courseId && (
+            <ProfessorCategoryGroupsScreen
+              courseId={courseId}
+              categoryId={selectedCategoryId}
+              onClose={() => { setSelectedCategoryId(null); load(); }}
+            />
+          )}
+        </DrawerContent>
+      </Drawer>
+
     </View>
   );
 }
@@ -393,12 +409,9 @@ function EvaluacionesTab({ evalList, courseId, onCreateEval }: { evalList: EvalL
           </View>
         ))
       )}
-      <TouchableOpacity
-        onPress={onCreateEval}
-        style={{ backgroundColor: PRIMARY, borderRadius: 30, paddingVertical: 16, alignItems: "center", marginTop: 24 }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "700", letterSpacing: 1 }}>CREAR UN NUEVA EVALUACION</Text>
-      </TouchableOpacity>
+      <Button onPress={onCreateEval}>
+        <Text>CREAR UNA NUEVA EVALUACIÓN</Text>
+      </Button>
     </View>
   );
 }
@@ -409,18 +422,19 @@ function CategoriasTab({
   categoryData,
   courseId,
   onCreateCategory,
+  onSelectCategory,
 }: {
   categoryData: CategoryWithData[];
   courseId: string;
   onCreateCategory: () => void;
+  onSelectCategory: (categoryId: string) => void;
 }) {
-  const router = useRouter();
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 }}>
       {categoryData.map((cd) => (
         <View key={cd.category._id}>
           <TouchableOpacity
-            onPress={() => router.push(`/professor-course/${courseId}/category/${cd.category._id}` as RelativePathString)}
+            onPress={() => onSelectCategory(cd.category._id)}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18 }}
           >
             <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>

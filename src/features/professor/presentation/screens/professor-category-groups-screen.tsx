@@ -1,41 +1,36 @@
-﻿import { Button } from "@/core/components/ui/button";
+import { Button } from "@/core/components/ui/button";
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Group, GroupMember } from "@/features/professor/domain/entities/professor";
 import { GroupModal } from "@/features/professor/presentation/components/group-modal";
 import { useProfessor } from "@/features/professor/presentation/context/professor-context";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CloudUpload, Plus, SquarePen } from "lucide-react-native";
+import { SquarePen, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
-  TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const PRIMARY = "#818CF8";
 
 type GroupWithMembers = { group: Group; members: GroupMember[] };
 
-export function ProfessorCategoryGroupsScreen() {
-  const { courseId, categoryId } = useLocalSearchParams<{ courseId: string; categoryId: string }>();
-  const router = useRouter();
+type Props = {
+  courseId: string;
+  categoryId: string;
+  onClose: () => void;
+};
 
+export function ProfessorCategoryGroupsScreen({ courseId, categoryId, onClose }: Props) {
   const {
     getCategoriesByCourse,
     updateCategory,
     getGroupsByCategory,
     getGroupMembersDetail,
-    getUserByEmail,
-    getMembersByGroup,
-    addMemberToGroup,
-    addGroup,
   } = useProfessor();
 
   const [categoryName, setCategoryName] = useState("");
@@ -43,7 +38,6 @@ export function ProfessorCategoryGroupsScreen() {
   const [groups, setGroups] = useState<GroupWithMembers[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -92,67 +86,18 @@ export function ProfessorCategoryGroupsScreen() {
     }
   };
 
-  const handleImportCsv = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "*/*"] });
-      if (result.canceled || !result.assets?.[0]) return;
-      setIsImporting(true);
-      const content = await new FileSystem.File(result.assets[0].uri).text();
-      await parseCategoryGroupsCsv(content);
-      await load();
-      Alert.alert("Importación completa", "Grupos creados correctamente.");
-    } catch (e: any) {
-      Alert.alert("Error al importar", e.message ?? "No se pudo procesar el archivo.");
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const parseCategoryGroupsCsv = async (csv: string) => {
-    const text = csv.replace(/^﻿/, "");
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
-    const grpIdx = headers.findIndex((h) => h.includes("group") || h.includes("grupo"));
-    const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("username") || h.includes("correo"));
-    if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name' o 'Grupo'.");
-    const existingGroups = await getGroupsByCategory(categoryId!);
-    const groupMap = new Map(existingGroups.map((g) => [g.name.toLowerCase().trim(), g]));
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]);
-      const grpName = cols[grpIdx]?.trim();
-      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
-      if (!grpName) continue;
-      if (!groupMap.has(grpName.toLowerCase())) {
-        await addGroup({ name: grpName, category_id: categoryId! });
-        const updated = await getGroupsByCategory(categoryId!);
-        updated.forEach((g) => groupMap.set(g.name.toLowerCase().trim(), g));
-      }
-      const group = groupMap.get(grpName.toLowerCase())!;
-      if (email) {
-        const user = await getUserByEmail(email);
-        if (user) {
-          const members = await getMembersByGroup(group._id);
-          if (!members.some((m) => m.userId === user.userId)) {
-            await addMemberToGroup(user.userId, group._id);
-          }
-        }
-      }
-    }
-  };
-
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1">
       <View className="w-full max-w-lg mx-auto flex-1 px-5 pt-4 pb-6">
 
         {/* ── Header ── */}
         <View className="flex-row items-center mb-6">
           <Button
             variant="secondary"
-            onPress={() => router.back()}
+            onPress={onClose}
             className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
           >
-            <ArrowLeft size={20} color="#1F265E" />
+            <X size={20} color="#1F265E" />
           </Button>
           <Text variant="h4" className="text-center flex-1">CATEGORÍA</Text>
           <View style={{ width: 50 }} />
@@ -167,26 +112,12 @@ export function ProfessorCategoryGroupsScreen() {
         {/* ── Grupos header ── */}
         <View className="flex-row items-center gap-2 mb-3">
           <Text variant="small" className="text-primary tracking-widest uppercase flex-1">Grupos</Text>
-          <Button
-            variant="secondary"
-            onPress={handleImportCsv}
-            disabled={isImporting}
-            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
-          >
-            {isImporting
-              ? <ActivityIndicator size="small" color={PRIMARY} />
-              : <CloudUpload size={18} color="#1F265E" />
-            }
-          </Button>
-          <Button
-            onPress={() => setIsCreateOpen(true)}
-            className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
-          >
-            <Plus size={18} color="#fff" />
+          <Button onPress={() => setIsCreateOpen(true)}>
+            <Text>Añadir</Text>
           </Button>
         </View>
 
-        <View className="h-px bg-muted mb-1" />
+        <View className="h-[1px] bg-muted mb-1" />
 
         {/* ── Lista ── */}
         {isLoading ? (
@@ -205,28 +136,26 @@ export function ProfessorCategoryGroupsScreen() {
               </View>
             }
             renderItem={({ item }) => (
-              <View>
-                <TouchableOpacity
-                  onPress={() => setEditGroup(item.group)}
-                  className="flex-row items-center py-4"
-                >
-                  <View className="flex-1">
-                    <Text className="font-bold text-[15px] text-foreground">
-                      {item.group.name.toUpperCase()}
+              <View className="flex-row items-center justify-between p-4">
+                <View className="flex-1">
+                  <Text className="font-bold text-[15px] text-foreground">
+                    {item.group.name.toUpperCase()}
+                  </Text>
+                  {item.members.length > 0 ? (
+                    <Text variant="muted" numberOfLines={1}>
+                      {item.members.map((m) => m.name).join(", ")}
                     </Text>
-                    {item.members.length > 0 ? (
-                      <Text variant="muted" numberOfLines={1}>
-                        {item.members.map((m) => m.name).join(", ")}
-                      </Text>
-                    ) : (
-                      <Text className="text-xs text-muted-foreground/50 mt-0.5">Sin miembros</Text>
-                    )}
-                  </View>
-                  <View className="w-[50px] h-[50px] rounded-2xl items-center justify-center bg-secondary">
-                    <SquarePen size={18} color="#1F265E" />
-                  </View>
-                </TouchableOpacity>
-                <View className="h-px bg-muted" />
+                  ) : (
+                    <Text className="text-xs text-muted-foreground/50 mt-0.5">Sin miembros</Text>
+                  )}
+                </View>
+                <Button
+                  variant="secondary"
+                  className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                  onPress={() => setEditGroup(item.group)}
+                >
+                  <SquarePen size={18} color="#1F265E" />
+                </Button>
               </View>
             )}
           />
@@ -237,7 +166,6 @@ export function ProfessorCategoryGroupsScreen() {
           onPress={handleSave}
           disabled={isSaving || categoryName.trim() === originalName}
           className="rounded-full w-full mt-4"
-          style={{ paddingVertical: 18 }}
         >
           <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
         </Button>
@@ -246,7 +174,7 @@ export function ProfessorCategoryGroupsScreen() {
       {/* ── Modal: Crear grupo ── */}
       <GroupModal
         mode="create"
-        categoryId={categoryId!}
+        categoryId={categoryId}
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={() => { setIsCreateOpen(false); load(); }}
@@ -257,8 +185,8 @@ export function ProfessorCategoryGroupsScreen() {
         <GroupModal
           mode="edit"
           group={editGroup}
-          courseId={courseId!}
-          categoryId={categoryId!}
+          courseId={courseId}
+          categoryId={categoryId}
           open={!!editGroup}
           onClose={() => setEditGroup(null)}
           onUpdated={() => load()}
@@ -266,18 +194,4 @@ export function ProfessorCategoryGroupsScreen() {
       )}
     </View>
   );
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; continue; }
-    current += ch;
-  }
-  result.push(current.trim());
-  return result;
 }
