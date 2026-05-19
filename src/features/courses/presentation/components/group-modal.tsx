@@ -244,6 +244,7 @@ function EditContent({ group, courseId, categoryId, onClose, onUpdated }: EditPr
                 onPress: async () => {
                   try {
                     await deleteGroup(group._id);
+                    onUpdated();
                     onClose();
                   } catch (e: any) {
                     Alert.alert("Error", e.message ?? "No se pudo eliminar el grupo.");

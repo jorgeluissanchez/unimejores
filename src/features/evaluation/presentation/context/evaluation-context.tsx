@@ -40,6 +40,7 @@ type EvaluationContextType = {
   getEvaluationByCategory: (categoryId: string) => Promise<Evaluation | null>;
   createEvaluation: (evaluation: NewEvaluation) => Promise<void>;
   updateEvaluation: (evaluation: Evaluation) => Promise<void>;
+  deleteEvaluation: (id: string) => Promise<void>;
   getCriteriaForEvaluation: (evaluationId: string) => Promise<Criterium[]>;
   getEvaluationCriteria: (evaluationId: string) => Promise<EvaluationCriterium[]>;
   addCriteriumToEvaluation: (evaluationId: string, criteriumId: string) => Promise<void>;
@@ -161,6 +162,7 @@ export function EvaluationProvider({ children }: { children: ReactNode }) {
     getEvaluationByCategory: (categoryId) => evalRepo.getEvaluationByCategory(categoryId),
     createEvaluation: (ev) => evalRepo.createEvaluation(ev),
     updateEvaluation: (ev) => evalRepo.updateEvaluation(ev),
+    deleteEvaluation: (id) => evalRepo.deleteEvaluation(id),
     getCriteriaForEvaluation: (evaluationId) => evalRepo.getCriteriaForEvaluation(evaluationId),
     getEvaluationCriteria: (evaluationId) => evalRepo.getEvaluationCriteria(evaluationId),
     addCriteriumToEvaluation: (evaluationId, criteriumId) => evalRepo.addCriteriumToEvaluation(evaluationId, criteriumId),

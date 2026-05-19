@@ -26,6 +26,7 @@ export class EvaluationRepositoryImpl implements EvaluationRepository {
   getEvaluationByCategory(categoryId: string): Promise<Evaluation | null> { return this.ds.getEvaluationByCategory(categoryId); }
   createEvaluation(evaluation: NewEvaluation): Promise<void> { return this.ds.createEvaluation(evaluation); }
   updateEvaluation(evaluation: Evaluation): Promise<void> { return this.ds.updateEvaluation(evaluation); }
+  deleteEvaluation(id: string): Promise<void> { return this.ds.deleteEvaluation(id); }
 
   getCriteriaForEvaluation(evaluationId: string): Promise<Criterium[]> { return this.ds.getCriteriaForEvaluation(evaluationId); }
   getEvaluationCriteria(evaluationId: string): Promise<EvaluationCriterium[]> { return this.ds.getEvaluationCriteria(evaluationId); }

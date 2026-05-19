@@ -158,6 +158,10 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
     await this.updateRecord("evaluation", _id, updates);
   }
 
+  async deleteEvaluation(id: string): Promise<void> {
+    await this.deleteRecord("evaluation", id);
+  }
+
   // ── Professor: Evaluation-criteria links ──────────────────────────────────
 
   async getCriteriaForEvaluation(evaluationId: string): Promise<Criterium[]> {

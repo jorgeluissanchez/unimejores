@@ -25,6 +25,7 @@ export interface EvaluationRepository {
   getEvaluationByCategory(categoryId: string): Promise<Evaluation | null>;
   createEvaluation(evaluation: NewEvaluation): Promise<void>;
   updateEvaluation(evaluation: Evaluation): Promise<void>;
+  deleteEvaluation(id: string): Promise<void>;
 
   // Professor: evaluation criteria links
   getCriteriaForEvaluation(evaluationId: string): Promise<Criterium[]>;

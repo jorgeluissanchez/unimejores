@@ -1,7 +1,10 @@
 import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
+import { Input } from "@/core/components/ui/input";
+import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
+import { Textarea } from "@/core/components/ui/textarea";
 import { parseCsvLine } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category, Group } from "@/features/courses/domain/entities/course";
@@ -16,9 +19,6 @@ import { useEvaluation } from "@/features/evaluation/presentation/context/evalua
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Input } from "@/core/components/ui/input";
-import { Label } from "@/core/components/ui/label";
-import { Textarea } from "@/core/components/ui/textarea";
 import { ArrowLeft, CloudUpload, Edit, SquarePen, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -67,6 +67,7 @@ export function ProfessorCourseDetailScreen() {
     getEvaluationByCategory,
     getResultsByGroup,
     updateEvaluation,
+    deleteEvaluation,
   } = useEvaluation();
 
   const course = useMemo(() => courses.find((c) => c._id === courseId), [courses, courseId]);
@@ -77,7 +78,7 @@ export function ProfessorCourseDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
-  const [editEval, setEditEval] = useState<Evaluation | null>(null);
+  const [editEval, setEditEval] = useState<EvalListItem | null>(null);
   const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
@@ -296,7 +297,7 @@ export function ProfessorCourseDetailScreen() {
               <ActivityIndicator color={PRIMARY} size="large" />
             </View>
           ) : tab === "evaluaciones" ? (
-            <EvaluacionesTab evalList={evalList} courseId={courseId!} onCreateEval={() => setIsCreateEvalOpen(true)} onEditEval={setEditEval} />
+            <EvaluacionesTab evalList={evalList} courseId={courseId!} onCreateEval={() => setIsCreateEvalOpen(true)} onEditEval={(item) => setEditEval(item)} />
           ) : (
             <CategoriasTab
               categoryData={categoryData}
@@ -337,9 +338,11 @@ export function ProfessorCourseDetailScreen() {
             </View>
             {editEval && (
               <EditEvaluationInline
-                evaluation={editEval}
+                evaluation={editEval.evaluation}
+                categoryName={editEval.categoryName}
                 onCancel={async () => { setEditEval(null); await load(); }}
                 updateEvaluation={updateEvaluation}
+                deleteEvaluation={deleteEvaluation}
               />
             )}
           </View>
@@ -412,7 +415,7 @@ export function ProfessorCourseDetailScreen() {
 
 // ─── EVALUACIONES TAB ─────────────────────────────────────────────────────────
 
-function EvaluacionesTab({ evalList, courseId, onCreateEval, onEditEval }: { evalList: EvalListItem[]; courseId: string; onCreateEval: () => void; onEditEval: (ev: Evaluation) => void }) {
+function EvaluacionesTab({ evalList, courseId, onCreateEval, onEditEval }: { evalList: EvalListItem[]; courseId: string; onCreateEval: () => void; onEditEval: (item: EvalListItem) => void }) {
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 }}>
       {evalList.length === 0 ? (
@@ -422,7 +425,7 @@ function EvaluacionesTab({ evalList, courseId, onCreateEval, onEditEval }: { eva
       ) : (
         evalList.map((item) => (
           <View key={item.evaluation._id}>
-            <TouchableOpacity onPress={() => onEditEval(item.evaluation)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}>
+            <TouchableOpacity onPress={() => onEditEval(item)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}>
               <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center", marginRight: 14 }}>
                 <SquarePen size={20} color={PRIMARY} />
               </View>
@@ -448,16 +451,20 @@ function EvaluacionesTab({ evalList, courseId, onCreateEval, onEditEval }: { eva
 
 function EditEvaluationInline({
   evaluation,
+  categoryName,
   onCancel,
   updateEvaluation,
+  deleteEvaluation,
 }: {
   evaluation: Evaluation;
+  categoryName: string;
   onCancel: () => Promise<void>;
   updateEvaluation: (ev: Evaluation) => Promise<void>;
+  deleteEvaluation: (id: string) => Promise<void>;
 }) {
   const [title, setTitle] = useState(evaluation.title);
   const [description, setDescription] = useState(evaluation.description ?? "");
-  const [endDate, setEndDate] = useState(evaluation.end_date ?? "");
+  const [endDate, setEndDate] = useState((evaluation.end_date ?? "").split("T")[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -474,8 +481,34 @@ function EditEvaluationInline({
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      "Eliminar evaluación",
+      `¿Eliminar "${evaluation.title}"? Esta acción no se puede deshacer.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteEvaluation(evaluation._id);
+              await onCancel();
+            } catch (e: any) {
+              Alert.alert("Error", e.message ?? "No se pudo eliminar la evaluación.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View className="gap-4">
+      <View style={{ backgroundColor: "#F3F4F6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+        <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" }}>Categoría</Text>
+        <Text style={{ fontSize: 14, color: "#374151", fontWeight: "600", marginTop: 2 }}>{categoryName}</Text>
+      </View>
       <View className="gap-1.5">
         <Label>Título</Label>
         <Input value={title} onChangeText={setTitle} placeholder="Título de la evaluación" />
@@ -485,11 +518,14 @@ function EditEvaluationInline({
         <Textarea value={description} onChangeText={setDescription} placeholder="Descripción (opcional)" />
       </View>
       <View className="gap-1.5">
-        <Label>Fecha de finalización</Label>
-        <Input value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" />
+        <Label>Fecha de finalización (YYYY-MM-DD)</Label>
+        <Input value={endDate} onChangeText={setEndDate} placeholder="2025-12-31" />
       </View>
       <Button onPress={handleSave} disabled={isSaving} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
         <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
+      </Button>
+      <Button variant="destructive" onPress={handleDelete} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+        <Text>ELIMINAR EVALUACIÓN</Text>
       </Button>
     </View>
   );
