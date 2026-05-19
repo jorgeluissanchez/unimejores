@@ -7,12 +7,16 @@ export type Evaluation = {
   category_id: string;
 };
 
+export type NewEvaluation = Omit<Evaluation, "_id">;
+
 export type Criterium = {
   _id: string;
   name: string;
   description: string;
   created_by: string;
 };
+
+export type NewCriterium = Omit<Criterium, "_id">;
 
 export type EvaluationCriterium = {
   _id: string;

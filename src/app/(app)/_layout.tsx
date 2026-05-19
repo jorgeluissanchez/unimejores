@@ -4,7 +4,6 @@ import React from 'react';
 import { useAuth } from '@/features/auth/presentation/context/auth-context';
 import { CourseProvider } from '@/features/courses/presentation/context/course-context';
 import { EvaluationProvider } from '@/features/evaluation/presentation/context/evaluation-context';
-import { ProfessorProvider } from '@/features/professor/presentation/context/professor-context';
 import { Redirect, RelativePathString } from 'expo-router';
 
 export default function AppLayout() {
@@ -19,12 +18,10 @@ export default function AppLayout() {
   }
 
   return (
-    <ProfessorProvider>
-      <CourseProvider>
-        <EvaluationProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </EvaluationProvider>
-      </CourseProvider>
-    </ProfessorProvider>
+    <CourseProvider>
+      <EvaluationProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </EvaluationProvider>
+    </CourseProvider>
   );
 }

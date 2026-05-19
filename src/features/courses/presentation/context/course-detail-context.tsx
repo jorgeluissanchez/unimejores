@@ -79,7 +79,7 @@ export function CourseDetailProvider({
           const group = await courseRepo.getGroupByCategory(cat._id, loggedUser.userId);
           let members: CourseUser[] = [];
           if (group) {
-            const ugs = await courseRepo.getMembersByGroup(group._id);
+            const ugs = await courseRepo.getMembersByGroupIds(group._id);
             const details = await Promise.all(
               ugs.map((ug) => courseRepo.getUserById(ug.user_id))
             );

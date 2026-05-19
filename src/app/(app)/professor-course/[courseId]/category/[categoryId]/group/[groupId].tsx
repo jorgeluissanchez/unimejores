@@ -1,1 +1,1 @@
-export { ProfessorGroupDetailScreen as default } from "@/features/professor/presentation/screens/professor-group-detail-screen";
+export { ProfessorGroupDetailScreen as default } from "@/features/courses/presentation/screens/professor-group-detail-screen";
