@@ -107,7 +107,7 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
             {/* Static header area */}
             <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
               {/* Header row */}
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
                 <Button
                   variant="secondary"
                   onPress={onClose}

@@ -103,25 +103,25 @@ export function GroupModal(props: Props) {
         </DialogTitle>
 
         <View style={{ flexDirection: "column" }}>
+          {/* Fixed header */}
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+            <Button variant="secondary" onPress={props.onClose} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+              <X size={20} color="#1F265E" />
+            </Button>
+            <Text variant="h4" className="text-center flex-1">
+              {props.mode === "create" ? "CREAR GRUPO" : "GRUPO"}
+            </Text>
+            <View style={{ width: 50 }} />
+          </View>
+
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
             style={Platform.OS === "web"
               ? { maxHeight: "60vh", scrollbarWidth: "none", msOverflowStyle: "none" } as any
               : undefined}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Header */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
-              <Button variant="secondary" onPress={props.onClose} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
-                <X size={20} color="#1F265E" />
-              </Button>
-              <Text variant="h4" className="text-center flex-1">
-                {props.mode === "create" ? "CREAR GRUPO" : "GRUPO"}
-              </Text>
-              <View style={{ width: 50 }} />
-            </View>
-
             {/* Nombre */}
             <View className="gap-1.5">
               <Label>Nombre</Label>

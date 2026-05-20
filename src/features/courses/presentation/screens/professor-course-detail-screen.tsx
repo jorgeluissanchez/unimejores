@@ -290,15 +290,17 @@ export function ProfessorCourseDetailScreen() {
       <Drawer open={isCreateEvalOpen} onOpenChange={(o) => { if (!o) setIsCreateEvalOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear evaluación</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setIsCreateEvalOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
               <Text variant="h4" className="text-center flex-1">CREAR EVALUACIÓN</Text>
               <View style={{ width: 50 }} />
             </View>
-            <CreateEvaluationForm courseId={courseId!} onCancel={async () => { setIsCreateEvalOpen(false); await load(); }} />
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              <CreateEvaluationForm courseId={courseId!} onCancel={async () => { setIsCreateEvalOpen(false); await load(); }} />
+            </ScrollView>
           </View>
         </DrawerContent>
       </Drawer>
@@ -308,14 +310,14 @@ export function ProfessorCourseDetailScreen() {
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar evaluación</DrawerTitle>
           <View style={{ flex: 1 }}>
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 }}>
-              <View className="flex-row items-center mb-6">
-                <Button variant="secondary" onPress={() => setEditEval(null)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
-                  <X size={20} color="#1F265E" />
-                </Button>
-                <Text variant="h4" className="text-center flex-1">EDITAR EVALUACIÓN</Text>
-                <View style={{ width: 50 }} />
-              </View>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
+              <Button variant="secondary" onPress={() => setEditEval(null)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                <X size={20} color="#1F265E" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1">EDITAR EVALUACIÓN</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
               {editEval && (
                 <>
                   <EditEvaluationForm
@@ -363,15 +365,17 @@ export function ProfessorCourseDetailScreen() {
       <Drawer open={isCreateCatOpen} onOpenChange={(o) => { if (!o) setIsCreateCatOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Crear categoría</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setIsCreateCatOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
               <Text variant="h4" className="text-center flex-1">CREAR CATEGORÍA</Text>
               <View style={{ width: 50 }} />
             </View>
-            <AddCategoryForm courseId={courseId!} onCancel={async () => { setIsCreateCatOpen(false); await load(); }} />
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              <AddCategoryForm courseId={courseId!} onCancel={async () => { setIsCreateCatOpen(false); await load(); }} />
+            </ScrollView>
           </View>
         </DrawerContent>
       </Drawer>
@@ -380,15 +384,17 @@ export function ProfessorCourseDetailScreen() {
       <Drawer open={isEditCourseOpen} onOpenChange={(o) => { if (!o) setIsEditCourseOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar curso</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setIsEditCourseOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
               <Text variant="h4" className="text-center flex-1">EDITAR CURSO</Text>
               <View style={{ width: 50 }} />
             </View>
-            {course && <UpdateCourseForm course={course} onCancel={() => setIsEditCourseOpen(false)} />}
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              {course && <UpdateCourseForm course={course} onCancel={() => setIsEditCourseOpen(false)} />}
+            </ScrollView>
           </View>
         </DrawerContent>
       </Drawer>
@@ -397,8 +403,8 @@ export function ProfessorCourseDetailScreen() {
       <Drawer open={isEnrollOpen} onOpenChange={(o) => { if (!o) setIsEnrollOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Estudiantes del curso</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setIsEnrollOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
