@@ -34,8 +34,7 @@
             "imageWidth": 76
           }
         }
-      ]
-      ,
+      ],
       [
         "expo-font",
         {
@@ -72,7 +71,11 @@
             ]
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-router",
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
