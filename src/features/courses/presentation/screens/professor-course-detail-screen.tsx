@@ -17,6 +17,7 @@ import { EditEvaluationForm, EditEvaluationFormHandle } from "@/features/evaluat
 import { EvaluationCriteriaForm } from "@/features/evaluation/presentation/components/forms/evaluation-criteria-form";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import * as DocumentPicker from "expo-document-picker";
+import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Edit, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,7 +27,6 @@ import {
   Keyboard,
   Platform,
   ScrollView,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -239,15 +239,22 @@ export function ProfessorCourseDetailScreen() {
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
-            <View style={{ flex: 1, flexDirection: "row" }}>
-              {(["evaluaciones", "categorias"] as const).map((t) => (
-                <TouchableOpacity key={t} onPress={() => setTab(t)} style={{ marginRight: 24, paddingBottom: 12, borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: tab === t ? PRIMARY : "#9CA3AF" }}>
-                    {t.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1">
+              <TabsList className="bg-transparent h-auto rounded-none p-0 gap-6">
+                {(["evaluaciones", "categorias"] as const).map((t) => (
+                  <TabsTrigger
+                    key={t}
+                    value={t}
+                    className="bg-transparent rounded-none px-0 pb-3 h-auto"
+                    style={{ borderBottomWidth: tab === t ? 2 : 0, borderBottomColor: PRIMARY }}
+                  >
+                    <Text className="text-[13px] font-bold tracking-[0.5px]" style={{ color: tab === t ? PRIMARY : "#9CA3AF" }}>
+                      {t.toUpperCase()}
+                    </Text>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
             {tab === "categorias" && (
               <Button
                 variant="secondary"

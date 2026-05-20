@@ -1,6 +1,6 @@
 import { Button } from "@/core/components/ui/button";
-import { Text } from "@/core/components/ui/text";
 import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
+import { Text } from "@/core/components/ui/text";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Course, Group, StudentEnrollment } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
@@ -196,18 +196,24 @@ export function ReportsScreen() {
               )}
 
               {courses.length > 0 && (
-                <Tabs
-                  value={selectedCourse?._id ?? ""}
-                  onValueChange={(id) => { const c = courses.find((c) => c._id === id); if (c) handleSelectCourse(c); }}
-                  style={{ marginTop: 8 }}
-                >
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <TabsList>
-                      {courses.map((course) => (
-                        <TabsTrigger key={course._id} value={course._id}>
-                          <Text>{course.name}</Text>
-                        </TabsTrigger>
-                      ))}
+                <Tabs value={selectedCourse?._id ?? ""} onValueChange={(id) => { const c = courses.find((c) => c._id === id); if (c) handleSelectCourse(c); }} className="mb-1">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8 }}>
+                    <TabsList className="bg-transparent h-auto rounded-none p-0 gap-6">
+                      {courses.map((course) => {
+                        const active = selectedCourse?._id === course._id;
+                        return (
+                          <TabsTrigger
+                            key={course._id}
+                            value={course._id}
+                            className="bg-transparent rounded-none px-0 pb-2 h-auto"
+                            style={{ borderBottomWidth: active ? 2 : 0, borderBottomColor: PRIMARY }}
+                          >
+                            <Text className="text-[13px] font-bold tracking-[0.5px]" style={{ color: active ? PRIMARY : "#9CA3AF" }}>
+                              {course.name.toUpperCase()}
+                            </Text>
+                          </TabsTrigger>
+                        );
+                      })}
                     </TabsList>
                   </ScrollView>
                 </Tabs>
