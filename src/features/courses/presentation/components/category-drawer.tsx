@@ -3,12 +3,9 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer"
 import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
-import { parseCsvLine } from "@/core/lib/utils";
 import { Category, Group, GroupMember } from "@/features/courses/domain/entities/course";
 import { GroupModal } from "@/features/courses/presentation/components/group-modal";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
 import { SquarePen, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Keyboard, TouchableOpacity, View } from "react-native";
@@ -31,9 +28,6 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
     deleteCategory,
     getGroupsByCategory,
     getGroupMembersDetail,
-    getUserByEmail,
-    getMembersByGroup,
-    addMemberToGroup,
     addGroup,
   } = useCourses();
 
@@ -44,7 +38,6 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
 
@@ -89,53 +82,16 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
     }
   };
 
-  const handleImportCsv = async () => {
+  const handleDelete = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "*/*"] });
-      if (result.canceled || !result.assets?.[0]) return;
-      setIsImporting(true);
-      const content = await new FileSystem.File(result.assets[0].uri).text();
-      await parseCategoryGroupsCsv(content);
-      await load();
+      setIsDeleting(true);
+      await deleteCategory(category._id);
       onUpdated();
-      Alert.alert("Importación completa", "Grupos creados correctamente.");
     } catch (e: any) {
-      Alert.alert("Error al importar", e.message ?? "No se pudo procesar el archivo.");
+      setConfirmDelete(false);
+      Alert.alert("Error", e.message ?? "No se pudo eliminar.");
     } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const parseCategoryGroupsCsv = async (csv: string) => {
-    const text = csv.replace(/^﻿/, "");
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
-    const grpIdx = headers.findIndex((h) => h.includes("group") || h.includes("grupo"));
-    const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("username") || h.includes("correo"));
-    if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name' o 'Grupo'.");
-    const existingGroups = await getGroupsByCategory(category._id);
-    const groupMap = new Map(existingGroups.map((g) => [g.name.toLowerCase().trim(), g]));
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]);
-      const grpName = cols[grpIdx]?.trim();
-      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
-      if (!grpName) continue;
-      if (!groupMap.has(grpName.toLowerCase())) {
-        await addGroup({ name: grpName, category_id: category._id });
-        const updated = await getGroupsByCategory(category._id);
-        updated.forEach((g) => groupMap.set(g.name.toLowerCase().trim(), g));
-      }
-      const group = groupMap.get(grpName.toLowerCase())!;
-      if (email) {
-        const user = await getUserByEmail(email);
-        if (user) {
-          const members = await getMembersByGroup(group._id);
-          if (!members.some((m) => m.userId === user.userId)) {
-            await addMemberToGroup(user.userId, group._id);
-          }
-        }
-      }
+      setIsDeleting(false);
     }
   };
 
@@ -146,52 +102,47 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>
             Categoría
           </DrawerTitle>
-          <View className="px-5 pt-4 pb-16 flex-1">
-            {/* Header */}
-            <View className="flex-row items-center mb-6">
-              <Button
-                variant="secondary"
-                onPress={onClose}
-                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
-              >
-                <X size={20} color="#1F265E" />
-              </Button>
-              <Text variant="h4" className="text-center flex-1">CATEGORÍA</Text>
-              <View style={{ width: 50 }} />
+
+          <View style={{ flex: 1 }}>
+            {/* Static header area */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+              {/* Header row */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
+                <Button
+                  variant="secondary"
+                  onPress={onClose}
+                  className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                >
+                  <X size={20} color="#1F265E" />
+                </Button>
+                <Text variant="h4" className="text-center flex-1">CATEGORÍA</Text>
+                <View style={{ width: 50 }} />
+              </View>
+
+              {/* Nombre */}
+              <View className="gap-1.5" style={{ marginBottom: 20 }}>
+                <Label>Nombre</Label>
+                <Input value={categoryName} onChangeText={setCategoryName} placeholder="Nombre de la categoría" />
+              </View>
+
+              {/* Grupos header */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <Text variant="small" className="text-primary tracking-widest uppercase flex-1">Grupos</Text>
+                <Button
+                  onPress={() => setIsCreateOpen(true)}
+                  className="rounded-full"
+                  style={{ paddingHorizontal: 16, paddingVertical: 10 }}
+                >
+                  <Text>Añadir</Text>
+                </Button>
+              </View>
+
+              <View className="h-px bg-muted" />
             </View>
 
-            {/* Nombre */}
-            <View className="gap-1.5 mb-5">
-              <Label>Nombre</Label>
-              <Input value={categoryName} onChangeText={setCategoryName} placeholder="Nombre de la categoría" />
-            </View>
-
-            {/* Grupos header */}
-            <View className="flex-row items-center gap-2 mb-3">
-              <Text variant="small" className="text-primary tracking-widest uppercase flex-1">Grupos</Text>
-              <Button
-                variant="secondary"
-                onPress={handleImportCsv}
-                disabled={isImporting}
-                className="rounded-full"
-                style={{ paddingHorizontal: 16, paddingVertical: 10 }}
-              >
-                <Text>{isImporting ? "..." : "Importar"}</Text>
-              </Button>
-              <Button
-                onPress={() => setIsCreateOpen(true)}
-                className="rounded-full"
-                style={{ paddingHorizontal: 16, paddingVertical: 10 }}
-              >
-                <Text>Añadir</Text>
-              </Button>
-            </View>
-
-            <View className="h-px bg-muted mb-1" />
-
-            {/* Lista grupos */}
+            {/* Groups list */}
             {isLoading ? (
-              <View className="flex-1 items-center justify-center">
+              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
                 <ActivityIndicator color={PRIMARY} />
               </View>
             ) : (
@@ -199,9 +150,9 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
                 data={groups}
                 keyExtractor={(item) => item.group._id}
                 style={{ flex: 1 }}
-                contentContainerStyle={{ paddingBottom: 16 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
                 ListEmptyComponent={
-                  <View className="py-10 items-center">
+                  <View style={{ paddingVertical: 40, alignItems: "center" }}>
                     <Text variant="muted">Sin grupos aún</Text>
                   </View>
                 }
@@ -209,9 +160,9 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
                   <View>
                     <TouchableOpacity
                       onPress={() => setEditGroup(item.group)}
-                      className="flex-row items-center py-4"
+                      style={{ flexDirection: "row", alignItems: "center", paddingVertical: 16 }}
                     >
-                      <View className="flex-1">
+                      <View style={{ flex: 1 }}>
                         <Text className="font-bold text-[15px] text-foreground">
                           {item.group.name.toUpperCase()}
                         </Text>
@@ -223,7 +174,7 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
                           <Text className="text-xs text-muted-foreground/50 mt-0.5">Sin miembros</Text>
                         )}
                       </View>
-                      <View className="w-[50px] h-[50px] rounded-2xl items-center justify-center bg-secondary">
+                      <View style={{ width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6" }}>
                         <SquarePen size={18} color="#1F265E" />
                       </View>
                     </TouchableOpacity>
@@ -233,66 +184,53 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
               />
             )}
 
-            {/* Guardar */}
-            <Button
-              onPress={handleSave}
-              disabled={isSaving || categoryName.trim() === originalName}
-              className="rounded-full w-full mt-4"
-              style={{ paddingVertical: 18 }}
-            >
-              <Text>{isSaving ? "GUARDANDO..." : "GUARDAR"}</Text>
-            </Button>
-
-            {/* Eliminar categoría */}
-            {confirmDelete ? (
-              <View className="gap-2 mt-3">
-                <Text className="text-center text-sm text-destructive font-semibold">¿Eliminar "{originalName}"?</Text>
-                <View className="flex-row gap-2">
-                  <Button variant="secondary" onPress={() => setConfirmDelete(false)} className="flex-1 rounded-full" disabled={isDeleting}>
-                    <Text>Cancelar</Text>
+            {/* Fixed footer */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, borderTopWidth: 1, borderTopColor: "#F3F4F6", gap: 8 }}>
+              {confirmDelete ? (
+                <>
+                  <Text style={{ textAlign: "center", fontSize: 13, color: "#EF4444", fontWeight: "600" }}>
+                    ¿Eliminar "{originalName}"?
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <Button variant="secondary" onPress={() => setConfirmDelete(false)} className="flex-1 rounded-full" style={{ paddingVertical: 14 }} disabled={isDeleting}>
+                      <Text>Cancelar</Text>
+                    </Button>
+                    <Button variant="destructive" onPress={handleDelete} className="flex-1 rounded-full" style={{ paddingVertical: 14 }} disabled={isDeleting}>
+                      <Text>{isDeleting ? "..." : "Eliminar"}</Text>
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Button
+                    onPress={handleSave}
+                    disabled={isSaving || categoryName.trim() === originalName}
+                    className="flex-1 rounded-full"
+                    style={{ paddingVertical: 14 }}
+                  >
+                    <Text>{isSaving ? "..." : "Guardar"}</Text>
                   </Button>
                   <Button
                     variant="destructive"
+                    onPress={() => setConfirmDelete(true)}
                     className="flex-1 rounded-full"
-                    disabled={isDeleting}
-                    onPress={async () => {
-                      try {
-                        setIsDeleting(true);
-                        await deleteCategory(category._id);
-                        onUpdated();
-                      } catch (e: any) {
-                        setConfirmDelete(false);
-                        Alert.alert("Error", e.message ?? "No se pudo eliminar.");
-                      } finally {
-                        setIsDeleting(false);
-                      }
-                    }}
+                    style={{ paddingVertical: 14 }}
                   >
-                    <Text>{isDeleting ? "..." : "Eliminar"}</Text>
+                    <Text>Eliminar</Text>
                   </Button>
                 </View>
-              </View>
-            ) : (
-              <Button
-                variant="destructive"
-                onPress={() => setConfirmDelete(true)}
-                className="rounded-full w-full mt-3"
-                style={{ paddingVertical: 18 }}
-              >
-                <Text>ELIMINAR CATEGORÍA</Text>
-              </Button>
-            )}
+              )}
+            </View>
           </View>
         </DrawerContent>
       </Drawer>
 
-      {/* Modales de grupo (fuera del Drawer para evitar anidación) */}
       <GroupModal
         mode="create"
         categoryId={category._id}
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={() => { setIsCreateOpen(false); load(); onUpdated(); }}
+        onCreated={() => { setIsCreateOpen(false); load(); }}
       />
       {editGroup && (
         <GroupModal
@@ -302,7 +240,7 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
           categoryId={category._id}
           open={!!editGroup}
           onClose={() => setEditGroup(null)}
-          onUpdated={() => { load(); onUpdated(); }}
+          onUpdated={() => load()}
         />
       )}
     </>

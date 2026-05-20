@@ -13,14 +13,19 @@ import { UpdateCourseForm } from "@/features/courses/presentation/components/for
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { CreateEvaluationForm } from "@/features/evaluation/presentation/components/forms/create-evaluation-form";
-import { EditEvaluationForm } from "@/features/evaluation/presentation/components/forms/edit-evaluation-form";
+import { EditEvaluationForm, EditEvaluationFormHandle } from "@/features/evaluation/presentation/components/forms/edit-evaluation-form";
 import { EvaluationCriteriaForm } from "@/features/evaluation/presentation/components/forms/evaluation-criteria-form";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
+import { parseCsvLine } from "@/core/lib/utils";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Edit, Users, X } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Keyboard,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
@@ -39,18 +44,28 @@ export function ProfessorCourseDetailScreen() {
     courses,
     getCategoriesByCourse,
     getGroupsByCategory,
+    addCategory,
+    addGroup,
+    getUserByEmail,
+    getMembersByGroup,
+    addMemberToGroup,
   } = useCourses();
 
-  const { myCriteria, getEvaluationByCategory, getResultsByGroup } = useEvaluation();
+  const { myCriteria, getEvaluationByCategory, getResultsByGroup, updateEvaluation, deleteEvaluation } = useEvaluation();
 
   const course = useMemo(() => courses.find((c) => c._id === courseId), [courses, courseId]);
 
   const [tab, setTab] = useState<"evaluaciones" | "categorias">("evaluaciones");
   const [categoryData, setCategoryData] = useState<CategoryWithData[]>([]);
   const [criteriaScores, setCriteriaScores] = useState<{ criteriumId: string; name: string; avg: number }[]>([]);
+  const editFormRef = useRef<EditEvaluationFormHandle>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
   const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
   const [editEval, setEditEval] = useState<EvalListItem | null>(null);
+  const [isSavingEval, setIsSavingEval] = useState(false);
+  const [isDeletingEval, setIsDeletingEval] = useState(false);
+  const [confirmDeleteEval, setConfirmDeleteEval] = useState(false);
   const [isCreateCatOpen, setIsCreateCatOpen] = useState(false);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
@@ -103,6 +118,97 @@ export function ProfessorCourseDetailScreen() {
         .map((cd) => ({ evaluation: cd.evaluation!, categoryName: cd.category.name })),
     [categoryData],
   );
+
+  const handleImportCsv = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"] });
+      if (result.canceled || !result.assets?.[0]) return;
+      setIsImporting(true);
+      const content = await new FileSystem.File(result.assets[0].uri).text();
+      await parseBrightspaceCsv(content, courseId!);
+      await load();
+      Alert.alert("Importación completa", "Las categorías y grupos se han creado correctamente.");
+    } catch (e: any) {
+      Alert.alert("Error al importar", e.message ?? "No se pudo procesar el archivo.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const parseBrightspaceCsv = async (csv: string, cId: string) => {
+    const text = csv.replace(/^﻿/, "");
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
+    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    const idx = (name: string) => headers.findIndex((h) => h.toLowerCase().includes(name.toLowerCase()));
+    const catIdx = idx("category");
+    const grpIdx = idx("group name");
+    const emailIdx = idx("username");
+    if (catIdx < 0 || grpIdx < 0) throw new Error("El CSV debe tener columnas 'Group Category Name' y 'Group Name'.");
+    const existingCats = await getCategoriesByCourse(cId);
+    const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c]));
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      const catName = cols[catIdx]?.trim();
+      const grpName = cols[grpIdx]?.trim();
+      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
+      if (!catName || !grpName) continue;
+      if (!catMap.has(catName.toLowerCase())) {
+        await addCategory({ name: catName, description: "", course_id: cId });
+        const updated = await getCategoriesByCourse(cId);
+        updated.forEach((c) => catMap.set(c.name.toLowerCase().trim(), c));
+      }
+      const cat = catMap.get(catName.toLowerCase())!;
+      const groups = await getGroupsByCategory(cat._id);
+      let group = groups.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
+      if (!group) {
+        await addGroup({ name: grpName, category_id: cat._id });
+        const updated = await getGroupsByCategory(cat._id);
+        group = updated.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
+      }
+      if (group && email) {
+        const user = await getUserByEmail(email);
+        if (user) {
+          const members = await getMembersByGroup(group._id);
+          if (!members.some((m) => m.userId === user.userId)) {
+            await addMemberToGroup(user.userId, group._id);
+          }
+        }
+      }
+    }
+  };
+
+  const handleSaveEval = async () => {
+    const values = editFormRef.current?.getValues();
+    if (!values || !editEval) return;
+    Keyboard.dismiss();
+    if (!values.title.trim()) return;
+    try {
+      setIsSavingEval(true);
+      await updateEvaluation({ ...editEval.evaluation, title: values.title.trim(), description: values.description.trim(), end_date: values.endDate.trim(), category_id: values.categoryId });
+      setEditEval(null);
+      await load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo guardar.");
+    } finally {
+      setIsSavingEval(false);
+    }
+  };
+
+  const handleDeleteEval = async () => {
+    if (!editEval) return;
+    try {
+      setIsDeletingEval(true);
+      await deleteEvaluation(editEval.evaluation._id);
+      setEditEval(null);
+      await load();
+    } catch (e: any) {
+      setConfirmDeleteEval(false);
+      Alert.alert("Error", e.message ?? "No se pudo eliminar.");
+    } finally {
+      setIsDeletingEval(false);
+    }
+  };
 
   const maxScore = 5;
   const containerWidth = Math.min(width, 512);
@@ -183,6 +289,17 @@ export function ProfessorCourseDetailScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            {tab === "categorias" && (
+              <Button
+                variant="secondary"
+                onPress={handleImportCsv}
+                disabled={isImporting}
+                className="rounded-full"
+                style={{ paddingHorizontal: 16, paddingVertical: 8, marginBottom: 10 }}
+              >
+                <Text>{isImporting ? "..." : "Importar"}</Text>
+              </Button>
+            )}
           </View>
 
           {isLoading ? (
@@ -223,29 +340,58 @@ export function ProfessorCourseDetailScreen() {
       </Drawer>
 
       {/* Editar evaluación */}
-      <Drawer open={!!editEval} onOpenChange={(o) => { if (!o) setEditEval(null); }}>
+      <Drawer open={!!editEval} onOpenChange={(o) => { if (!o) { setEditEval(null); setConfirmDeleteEval(false); } }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar evaluación</DrawerTitle>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 64 }}>
-            <View className="flex-row items-center mb-6">
-              <Button variant="secondary" onPress={() => setEditEval(null)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
-                <X size={20} color="#1F265E" />
-              </Button>
-              <Text variant="h4" className="text-center flex-1">EDITAR EVALUACIÓN</Text>
-              <View style={{ width: 50 }} />
+          <View style={{ flex: 1 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 }}>
+              <View className="flex-row items-center mb-6">
+                <Button variant="secondary" onPress={() => setEditEval(null)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+                  <X size={20} color="#1F265E" />
+                </Button>
+                <Text variant="h4" className="text-center flex-1">EDITAR EVALUACIÓN</Text>
+                <View style={{ width: 50 }} />
+              </View>
+              {editEval && (
+                <>
+                  <EditEvaluationForm
+                    ref={editFormRef}
+                    evaluation={editEval.evaluation}
+                    categories={categoryData.map((cd) => ({ _id: cd.category._id, name: cd.category.name }))}
+                  />
+                  <View className="h-px bg-muted mt-6 mb-6" />
+                  <EvaluationCriteriaForm evaluation={editEval.evaluation} />
+                </>
+              )}
+            </ScrollView>
+            {/* Fixed footer */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, borderTopWidth: 1, borderTopColor: "#F3F4F6", gap: 8 }}>
+              {confirmDeleteEval ? (
+                <>
+                  <Text style={{ textAlign: "center", fontSize: 13, color: "#EF4444", fontWeight: "600" }}>
+                    ¿Eliminar "{editEval?.evaluation.title}"?
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <Button variant="secondary" onPress={() => setConfirmDeleteEval(false)} className="flex-1 rounded-full" style={{ paddingVertical: 14 }} disabled={isDeletingEval}>
+                      <Text>Cancelar</Text>
+                    </Button>
+                    <Button variant="destructive" onPress={handleDeleteEval} className="flex-1 rounded-full" style={{ paddingVertical: 14 }} disabled={isDeletingEval}>
+                      <Text>{isDeletingEval ? "..." : "Eliminar"}</Text>
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Button onPress={handleSaveEval} disabled={isSavingEval} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
+                    <Text>{isSavingEval ? "..." : "Guardar"}</Text>
+                  </Button>
+                  <Button variant="destructive" onPress={() => setConfirmDeleteEval(true)} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
+                    <Text>Eliminar</Text>
+                  </Button>
+                </View>
+              )}
             </View>
-            {editEval && (
-              <>
-                <EditEvaluationForm
-                  evaluation={editEval.evaluation}
-                  categories={categoryData.map((cd) => ({ _id: cd.category._id, name: cd.category.name }))}
-                  onDone={async () => { setEditEval(null); await load(); }}
-                />
-                <View className="h-px bg-muted mt-6 mb-6" />
-                <EvaluationCriteriaForm evaluation={editEval.evaluation} />
-              </>
-            )}
-          </ScrollView>
+          </View>
         </DrawerContent>
       </Drawer>
 
