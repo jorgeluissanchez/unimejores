@@ -15,7 +15,7 @@ import { useEvaluation } from "@/features/evaluation/presentation/context/evalua
 import { RelativePathString } from "expo-router";
 import { List, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, View } from "react-native";
+import { ActivityIndicator, FlatList, ScrollView, View } from "react-native";
 import { Circle, Svg } from "react-native-svg";
 
 const CARD_THEMES = [
@@ -70,6 +70,15 @@ function StudentHome() {
             buttonBackground={featuredTheme.buttonBackground}
             buttonTextColor={featuredTheme.buttonText}
           />
+        ) : courses.length > 0 ? (
+          <View style={{ backgroundColor: "#F3F4F6", borderRadius: 20, padding: 24, marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#9CA3AF", marginBottom: 6 }}>
+              Todo al día
+            </Text>
+            <Text style={{ fontSize: 14, color: "#9CA3AF", lineHeight: 20 }}>
+              Ya evaluaste a todos tus compañeros.{"\n"}Espera tu próxima evaluación.
+            </Text>
+          </View>
         ) : null}
 
         {error ? (
@@ -300,15 +309,17 @@ function ProfessorHome() {
       <Drawer open={isAddOpen} onOpenChange={(o) => { if (!o) setIsAddOpen(false); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Agregar curso</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setIsAddOpen(false)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
               <Text variant="h4" className="text-center flex-1">AGREGAR CURSO</Text>
               <View style={{ width: 50 }} />
             </View>
-            <AddCourseForm onCancel={() => setIsAddOpen(false)} />
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              <AddCourseForm onCancel={() => setIsAddOpen(false)} />
+            </ScrollView>
           </View>
         </DrawerContent>
       </Drawer>
@@ -316,15 +327,17 @@ function ProfessorHome() {
       <Drawer open={!!editCourse} onOpenChange={(o) => { if (!o) setEditCourse(null); }}>
         <DrawerContent>
           <DrawerTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>Editar curso</DrawerTitle>
-          <View className="px-5 pt-4 pb-16" style={{ flex: 1 }}>
-            <View className="flex-row items-center mb-6">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-muted">
               <Button variant="secondary" onPress={() => setEditCourse(null)} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
                 <X size={20} color="#1F265E" />
               </Button>
               <Text variant="h4" className="text-center flex-1">EDITAR CURSO</Text>
               <View style={{ width: 50 }} />
             </View>
-            {editCourse && <UpdateCourseForm course={editCourse} onCancel={() => setEditCourse(null)} />}
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+              {editCourse && <UpdateCourseForm course={editCourse} onCancel={() => setEditCourse(null)} />}
+            </ScrollView>
           </View>
         </DrawerContent>
       </Drawer>

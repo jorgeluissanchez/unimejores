@@ -137,6 +137,16 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
             if (!group || !evals[0]) return null;
             const ev = evals[0];
             if (new Date(ev.end_date) <= now) return null;
+
+            // Check if user has already evaluated all peers in the group
+            const [groupMembers, myResults] = await Promise.all([
+              this.readTable<{ user_id: string }>("user_group", { group_id: group._id }),
+              this.readTable<{ evaluated_id: string }>("result_evaluation", { group_id: group._id, evaluator_id: userId }),
+            ]);
+            const peers = groupMembers.map((m) => m.user_id).filter((id) => id !== userId);
+            const evaluatedIds = new Set(myResults.map((r) => r.evaluated_id));
+            if (peers.length > 0 && peers.every((id) => evaluatedIds.has(id))) return null;
+
             return {
               evaluationId: ev._id,
               evaluationTitle: ev.title,
