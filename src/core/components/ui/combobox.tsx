@@ -77,12 +77,11 @@ type ComboboxProps = {
   onValueChange: (value: string | undefined) => void;
   hasError?: boolean;
   children: React.ReactNode;
+  displayValue?: string;
 };
 
-function Combobox({ value, onValueChange, hasError, children }: ComboboxProps) {
-  // The label that belongs to the current value — resolved externally via
-  // commitSelection so we don't need the full options list here.
-  const [inputValue, setInputValue] = useState("");
+function Combobox({ value, onValueChange, hasError, children, displayValue }: ComboboxProps) {
+  const [inputValue, setInputValue] = useState(displayValue ?? "");
   const [open, setOpen] = useState(false);
   const justSelectedRef = useRef(false);
 
