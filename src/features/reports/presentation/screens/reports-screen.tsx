@@ -6,8 +6,7 @@ import { Course, Group, StudentEnrollment } from "@/features/courses/domain/enti
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import { Criterium, ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
+import { Platform } from "react-native";
 import { Download } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -151,15 +150,26 @@ export function ReportsScreen() {
 
       const safeName = item.categoryName.replace(/[^a-zA-Z0-9]/g, "_");
       const fileName = `${safeName}_reporte.csv`;
-      const fileUri = FileSystem.Paths.cache + "/" + fileName;
-      const file = new FileSystem.File(fileUri);
-      await file.write(csv);
 
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle: `Reporte: ${item.categoryName}`, UTI: "public.comma-separated-values-text" });
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
       } else {
-        Alert.alert("Exportado", `Archivo guardado en:\n${fileUri}`);
+        const FS = require("expo-file-system");
+        const Sharing = require("expo-sharing");
+        const fileUri = FS.cacheDirectory + fileName;
+        await FS.writeAsStringAsync(fileUri, csv, { encoding: FS.EncodingType.UTF8 });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle: `Reporte: ${item.categoryName}`, UTI: "public.comma-separated-values-text" });
+        } else {
+          Alert.alert("Exportado", `Archivo guardado en:\n${fileUri}`);
+        }
       }
     } catch (e: any) {
       Alert.alert("Error al exportar", e?.message ?? String(e));
