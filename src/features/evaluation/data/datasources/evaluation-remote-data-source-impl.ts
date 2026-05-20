@@ -140,6 +140,10 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
   }
 
   async deleteCriterium(id: string): Promise<void> {
+    const links = await this.readTable<{ _id: string }>("evaluation_criterium", { criterium_id: id });
+    await Promise.all(links.map((l) => this.deleteRecord("evaluation_criterium", l._id)));
+    const results = await this.readTable<{ _id: string }>("result_evaluation", { criterium_id: id });
+    await Promise.all(results.map((r) => this.deleteRecord("result_evaluation", r._id)));
     await this.deleteRecord("criterium", id);
   }
 
@@ -159,6 +163,8 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
   }
 
   async deleteEvaluation(id: string): Promise<void> {
+    const links = await this.readTable<{ _id: string }>("evaluation_criterium", { evaluation_id: id });
+    await Promise.all(links.map((l) => this.deleteRecord("evaluation_criterium", l._id)));
     await this.deleteRecord("evaluation", id);
   }
 

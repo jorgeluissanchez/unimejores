@@ -47,6 +47,7 @@ export interface CourseRepository {
   addStudentToCourse(courseId: string, userId: string): Promise<void>;
   removeStudentFromCourse(userCourseId: string): Promise<void>;
   getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null>;
+  importGroupsCsv(courseId: string, csvContent: string): Promise<void>;
 
   // Student course detail
   getGroupByCategory(categoryId: string, userId: string): Promise<Group | null>;

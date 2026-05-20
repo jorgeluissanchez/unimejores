@@ -50,4 +50,7 @@ export interface CourseDataSource {
   addStudentToCourse(courseId: string, userId: string): Promise<void>;
   removeStudentFromCourse(userCourseId: string): Promise<void>;
   getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null>;
+
+  // CSV import (professor)
+  importGroupsCsv(courseId: string, csvContent: string): Promise<void>;
 }

@@ -2,7 +2,6 @@ import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
-import { parseCsvLine } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category } from "@/features/courses/domain/entities/course";
 import { CategoriasTab, CategoryWithData } from "@/features/courses/presentation/components/categorias-tab";
@@ -18,7 +17,6 @@ import { EditEvaluationForm, EditEvaluationFormHandle } from "@/features/evaluat
 import { EvaluationCriteriaForm } from "@/features/evaluation/presentation/components/forms/evaluation-criteria-form";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Edit, Users, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +24,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  Platform,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
@@ -44,11 +43,7 @@ export function ProfessorCourseDetailScreen() {
     courses,
     getCategoriesByCourse,
     getGroupsByCategory,
-    addCategory,
-    addGroup,
-    getUserByEmail,
-    getMembersByGroup,
-    addMemberToGroup,
+    importGroupsCsv,
   } = useCourses();
 
   const { myCriteria, getEvaluationByCategory, getResultsByGroup, updateEvaluation, deleteEvaluation } = useEvaluation();
@@ -123,58 +118,22 @@ export function ProfessorCourseDetailScreen() {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"] });
       if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
       setIsImporting(true);
-      const content = await new FileSystem.File(result.assets[0].uri).text();
-      await parseBrightspaceCsv(content, courseId!);
+      let content: string;
+      if (Platform.OS === "web") {
+        content = await fetch(asset.uri).then((r) => r.text());
+      } else {
+        const FS = require("expo-file-system");
+        content = await new FS.File(asset.uri).text();
+      }
+      await importGroupsCsv(courseId!, content);
       await load();
       Alert.alert("Importación completa", "Las categorías y grupos se han creado correctamente.");
     } catch (e: any) {
       Alert.alert("Error al importar", e.message ?? "No se pudo procesar el archivo.");
     } finally {
       setIsImporting(false);
-    }
-  };
-
-  const parseBrightspaceCsv = async (csv: string, cId: string) => {
-    const text = csv.replace(/^﻿/, "");
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-    const idx = (name: string) => headers.findIndex((h) => h.toLowerCase().includes(name.toLowerCase()));
-    const catIdx = idx("category");
-    const grpIdx = idx("group name");
-    const emailIdx = idx("username");
-    if (catIdx < 0 || grpIdx < 0) throw new Error("El CSV debe tener columnas 'Group Category Name' y 'Group Name'.");
-    const existingCats = await getCategoriesByCourse(cId);
-    const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c]));
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]);
-      const catName = cols[catIdx]?.trim();
-      const grpName = cols[grpIdx]?.trim();
-      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
-      if (!catName || !grpName) continue;
-      if (!catMap.has(catName.toLowerCase())) {
-        await addCategory({ name: catName, description: "", course_id: cId });
-        const updated = await getCategoriesByCourse(cId);
-        updated.forEach((c) => catMap.set(c.name.toLowerCase().trim(), c));
-      }
-      const cat = catMap.get(catName.toLowerCase())!;
-      const groups = await getGroupsByCategory(cat._id);
-      let group = groups.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
-      if (!group) {
-        await addGroup({ name: grpName, category_id: cat._id });
-        const updated = await getGroupsByCategory(cat._id);
-        group = updated.find((g) => g.name.toLowerCase() === grpName.toLowerCase());
-      }
-      if (group && email) {
-        const user = await getUserByEmail(email);
-        if (user) {
-          const members = await getMembersByGroup(group._id);
-          if (!members.some((m) => m.userId === user.userId)) {
-            await addMemberToGroup(user.userId, group._id);
-          }
-        }
-      }
     }
   };
 

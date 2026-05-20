@@ -48,4 +48,5 @@ export class CourseRepositoryImpl implements CourseRepository {
   addStudentToCourse(courseId: string, userId: string): Promise<void> { return this.ds.addStudentToCourse(courseId, userId); }
   removeStudentFromCourse(userCourseId: string): Promise<void> { return this.ds.removeStudentFromCourse(userCourseId); }
   getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null> { return this.ds.getUserByEmail(email); }
+  importGroupsCsv(courseId: string, csvContent: string): Promise<void> { return this.ds.importGroupsCsv(courseId, csvContent); }
 }

@@ -63,6 +63,7 @@ type CourseContextType = {
   addStudentToCourse: (courseId: string, userId: string) => Promise<void>;
   removeStudentFromCourse: (userCourseId: string) => Promise<void>;
   getUserByEmail: (email: string) => Promise<{ userId: string; name: string; email: string } | null>;
+  importGroupsCsv: (courseId: string, csvContent: string) => Promise<void>;
 };
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -169,6 +170,7 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
     addStudentToCourse: (courseId, userId) => repo.addStudentToCourse(courseId, userId),
     removeStudentFromCourse: (userCourseId) => repo.removeStudentFromCourse(userCourseId),
     getUserByEmail: (email) => repo.getUserByEmail(email),
+    importGroupsCsv: (courseId, csvContent) => repo.importGroupsCsv(courseId, csvContent),
   }), [courses, isLoading, error, pendingEvaluations, pendingLoading, repo, wrap]);
 
   return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;

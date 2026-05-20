@@ -1,3 +1,4 @@
+import { parseCsvLine } from "@/core/lib/utils";
 import { ILocalPreferences } from "@/core/storage/i-local-preferences";
 import { LocalPreferencesAsyncStorage } from "@/core/storage/local-preferences-async-storage";
 import { AuthRemoteDataSourceImpl } from "@/features/auth/data/datasources/auth-remote-data-source-impl";
@@ -166,6 +167,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async deleteCourse(id: string): Promise<void> {
+    const cats = await this.readTable<{ _id: string }>("category", { course_id: id });
+    await Promise.all(cats.map((c) => this.deleteCategory(c._id)));
+    const uc = await this.readTable<{ _id: string }>("user_course", { course_id: id });
+    await Promise.all(uc.map((r) => this.deleteRecord("user_course", r._id)));
     await this.deleteRecord("course", id);
   }
 
@@ -184,6 +189,16 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async deleteCategory(id: string): Promise<void> {
+    const groups = await this.readTable<{ _id: string }>("group", { category_id: id });
+    await Promise.all(groups.map((g) => this.deleteGroup(g._id)));
+    const evals = await this.readTable<{ _id: string }>("evaluation", { category_id: id });
+    await Promise.all(
+      evals.map(async (ev) => {
+        const links = await this.readTable<{ _id: string }>("evaluation_criterium", { evaluation_id: ev._id });
+        await Promise.all(links.map((l) => this.deleteRecord("evaluation_criterium", l._id)));
+        await this.deleteRecord("evaluation", ev._id);
+      }),
+    );
     await this.deleteRecord("category", id);
   }
 
@@ -202,6 +217,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async deleteGroup(groupId: string): Promise<void> {
+    const ug = await this.readTable<{ _id: string }>("user_group", { group_id: groupId });
+    await Promise.all(ug.map((r) => this.deleteRecord("user_group", r._id)));
+    const results = await this.readTable<{ _id: string }>("result_evaluation", { group_id: groupId });
+    await Promise.all(results.map((r) => this.deleteRecord("result_evaluation", r._id)));
     await this.deleteRecord("group", groupId);
   }
 
@@ -282,5 +301,80 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     const rows = await this.readTable<{ user_id: string; name: string; email: string }>("user", { email });
     if (!rows[0]) return null;
     return { userId: rows[0].user_id, name: rows[0].name, email: rows[0].email };
+  }
+
+  async importGroupsCsv(courseId: string, csvContent: string): Promise<void> {
+    const text = csvContent.replace(/^﻿/, "");
+    const lines = text.split(/\r?\n/).filter((l: string) => l.trim());
+    if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
+
+    const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+    const col = (...keys: string[]) => headers.findIndex((h) => keys.some((k) => h.includes(k)));
+    const catIdx = col("group category name", "category");
+    const grpIdx = col("group name", "grupo");
+    const emailIdx = col("username", "email address", "email", "correo");
+    if (catIdx < 0) throw new Error("El CSV debe tener columna 'Group Category Name'.");
+    if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name'.");
+
+    // Load existing categories and groups into maps to avoid redundant reads
+    const existingCats = await this.readTable<{ _id: string; name: string }>("category", { course_id: courseId });
+    const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c._id]));
+
+    const groupMap = new Map<string, string>(); // "catId|groupNameKey" -> groupId
+    for (const cat of existingCats) {
+      const groups = await this.readTable<{ _id: string; name: string }>("group", { category_id: cat._id });
+      for (const g of groups) groupMap.set(`${cat._id}|${g.name.toLowerCase().trim()}`, g._id);
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      const catName = cols[catIdx]?.trim();
+      const grpName = cols[grpIdx]?.trim();
+      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
+      if (!catName || !grpName) continue;
+
+      // Ensure category exists
+      const catKey = catName.toLowerCase().trim();
+      if (!catMap.has(catKey)) {
+        const created = await this.insertAndReturn<{ _id: string }>("category", { name: catName, description: "", course_id: courseId });
+        if (created?._id) catMap.set(catKey, created._id);
+      }
+      const catId = catMap.get(catKey);
+      if (!catId) continue;
+
+      // Ensure group exists
+      const grpKey = `${catId}|${grpName.toLowerCase().trim()}`;
+      if (!groupMap.has(grpKey)) {
+        const created = await this.insertAndReturn<{ _id: string }>("group", { name: grpName, category_id: catId });
+        if (created?._id) groupMap.set(grpKey, created._id);
+      }
+      const groupId = groupMap.get(grpKey);
+      if (!groupId || !email) continue;
+
+      // Look up user by email and assign to course + group
+      const users = await this.readTable<{ user_id: string }>("user", { email });
+      const user = users[0];
+      if (!user) continue;
+
+      const enrolled = await this.readTable("user_course", { course_id: courseId, user_id: user.user_id });
+      if (enrolled.length === 0) await this.insertRecord("user_course", { course_id: courseId, user_id: user.user_id });
+
+      const inGroup = await this.readTable("user_group", { user_id: user.user_id, group_id: groupId });
+      if (inGroup.length === 0) await this.insertRecord("user_group", { user_id: user.user_id, group_id: groupId });
+    }
+  }
+
+  private async insertAndReturn<T>(tableName: string, record: Record<string, unknown>): Promise<T | null> {
+    const response = await this.authorizedFetch(`${this.baseUrl}/insert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tableName, records: [record] }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(`Error insertando en ${tableName}: ${body.message ?? response.status}`);
+    }
+    const data = await response.json();
+    return data.inserted?.[0] ?? null;
   }
 }
