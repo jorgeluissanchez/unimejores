@@ -1,4 +1,6 @@
+import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
+import { Tabs, TabsList, TabsTrigger } from "@/core/components/ui/tabs";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Course, Group, StudentEnrollment } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
@@ -6,6 +8,7 @@ import { Criterium, ResultEvaluation } from "@/features/evaluation/domain/entiti
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { Download } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +16,6 @@ import {
   FlatList,
   SafeAreaView,
   ScrollView,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -194,20 +196,21 @@ export function ReportsScreen() {
               )}
 
               {courses.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                  <View style={{ flexDirection: "row", gap: 24 }}>
-                    {courses.map((course) => {
-                      const active = selectedCourse?._id === course._id;
-                      return (
-                        <TouchableOpacity key={course._id} onPress={() => handleSelectCourse(course)}>
-                          <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.5, color: active ? PRIMARY : "#9CA3AF", paddingBottom: 10, borderBottomWidth: active ? 2 : 0, borderBottomColor: PRIMARY }}>
-                            {course.name.toUpperCase()}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
+                <Tabs
+                  value={selectedCourse?._id ?? ""}
+                  onValueChange={(id) => { const c = courses.find((c) => c._id === id); if (c) handleSelectCourse(c); }}
+                  style={{ marginTop: 8 }}
+                >
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <TabsList>
+                      {courses.map((course) => (
+                        <TabsTrigger key={course._id} value={course._id}>
+                          <Text>{course.name}</Text>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </ScrollView>
+                </Tabs>
               )}
 
               <View style={{ height: 1, backgroundColor: "#E5E7EB", marginBottom: 4 }} />
@@ -227,17 +230,19 @@ export function ReportsScreen() {
                     {item.groupCount} {item.groupCount === 1 ? "Grupo" : "Grupos"}
                   </Text>
                 </View>
-                <TouchableOpacity
+                <Button
+                  variant="secondary"
                   onPress={() => exportCsv(item)}
-                  disabled={loadingCategory === item.categoryId}
-                  style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: item.evaluationId ? PRIMARY : "#E5E7EB", alignItems: "center", justifyContent: "center" }}
+                  disabled={loadingCategory === item.categoryId || !item.evaluationId}
+                  className="rounded-full w-[38px] h-[38px] p-0 items-center justify-center"
+                  style={{ borderWidth: 1.5, borderColor: item.evaluationId ? PRIMARY : "#E5E7EB" }}
                 >
                   {loadingCategory === item.categoryId ? (
                     <ActivityIndicator size="small" color={PRIMARY} />
                   ) : (
-                    <Text style={{ color: item.evaluationId ? PRIMARY : "#D1D5DB", fontSize: 18, fontWeight: "700", lineHeight: 22 }}>↓</Text>
+                    <Download size={18} color={item.evaluationId ? PRIMARY : "#D1D5DB"} />
                   )}
-                </TouchableOpacity>
+                </Button>
               </View>
               <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
             </View>
