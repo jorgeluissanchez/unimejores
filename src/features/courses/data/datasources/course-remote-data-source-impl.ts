@@ -19,6 +19,7 @@ import {
 
 export class CourseRemoteDataSourceImpl implements CourseDataSource {
   private readonly baseUrl: string;
+  private readonly authBaseUrl: string;
   private prefs: ILocalPreferences;
 
   constructor(
@@ -26,7 +27,9 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     projectId = process.env.EXPO_PUBLIC_ROBLE_PROJECT_ID,
   ) {
     if (!projectId) throw new Error("Falta EXPO_PUBLIC_ROBLE_PROJECT_ID");
-    this.baseUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co"}/database/${projectId}`;
+    const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://roble-api.openlab.uninorte.edu.co";
+    this.baseUrl = `${apiBase}/database/${projectId}`;
+    this.authBaseUrl = `${apiBase}/auth/${projectId}`;
     this.prefs = LocalPreferencesAsyncStorage.getInstance();
   }
 
@@ -329,6 +332,8 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     const catIdx = col("group category name", "category");
     const grpIdx = col("group name", "grupo");
     const emailIdx = col("username", "email address", "email", "correo");
+    const firstNameIdx = col("first name", "nombre");
+    const lastNameIdx = col("last name", "apellido");
     if (catIdx < 0) throw new Error("El CSV debe tener columna 'Group Category Name'.");
     if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name'.");
 
@@ -347,6 +352,9 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
       const catName = cols[catIdx]?.trim();
       const grpName = cols[grpIdx]?.trim();
       const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
+      const firstName = firstNameIdx >= 0 ? (cols[firstNameIdx]?.trim() ?? "") : "";
+      const lastName = lastNameIdx >= 0 ? (cols[lastNameIdx]?.trim() ?? "") : "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
       if (!catName || !grpName) continue;
 
       // Ensure category exists
@@ -367,17 +375,56 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
       const groupId = groupMap.get(grpKey);
       if (!groupId || !email) continue;
 
-      // Look up user by email and assign to course + group
-      const users = await this.readTable<{ user_id: string }>("user", { email });
-      const user = users[0];
-      if (!user) continue;
+      // Ensure user exists (create if needed) then assign to course + group
+      const userId = await this.ensureStudentExists(email, fullName);
+      if (!userId) continue;
 
-      const enrolled = await this.readTable("user_course", { course_id: courseId, user_id: user.user_id });
-      if (enrolled.length === 0) await this.insertRecord("user_course", { course_id: courseId, user_id: user.user_id });
+      const enrolled = await this.readTable("user_course", { course_id: courseId, user_id: userId });
+      if (enrolled.length === 0) await this.insertRecord("user_course", { course_id: courseId, user_id: userId });
 
-      const inGroup = await this.readTable("user_group", { user_id: user.user_id, group_id: groupId });
-      if (inGroup.length === 0) await this.insertRecord("user_group", { user_id: user.user_id, group_id: groupId });
+      const inGroup = await this.readTable("user_group", { user_id: userId, group_id: groupId });
+      if (inGroup.length === 0) await this.insertRecord("user_group", { user_id: userId, group_id: groupId });
     }
+  }
+
+  private decodeJwtSub(token: string): string | null {
+    try {
+      const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const json = decodeURIComponent(atob(base64).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join(""));
+      return JSON.parse(json).sub ?? null;
+    } catch { return null; }
+  }
+
+  private async ensureStudentExists(email: string, name: string): Promise<string | null> {
+    const existing = await this.readTable<{ user_id: string }>("user", { email });
+    if (existing[0]) return existing[0].user_id;
+
+    const password = "1" + email[0].toUpperCase() + email.slice(1);
+    const signupRes = await fetch(`${this.authBaseUrl}/signup-direct`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, name: name || email, password }),
+    });
+    if (!signupRes.ok) return null;
+
+    let loginRes: Response | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+      loginRes = await fetch(`${this.authBaseUrl}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (loginRes.ok) break;
+    }
+    if (!loginRes?.ok) return null;
+
+    const { accessToken } = await loginRes.json();
+    const userId = this.decodeJwtSub(accessToken);
+    if (!userId) return null;
+
+    await this.insertRecord("user", { user_id: userId, email, name: name || email, role: "student" });
+    return userId;
   }
 
   private async insertAndReturn<T>(tableName: string, record: Record<string, unknown>): Promise<T | null> {
