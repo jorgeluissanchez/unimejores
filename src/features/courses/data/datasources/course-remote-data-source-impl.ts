@@ -294,6 +294,22 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
   }
 
   async removeStudentFromCourse(userCourseId: string): Promise<void> {
+    const rows = await this.readTable<{ _id: string; user_id: string; course_id: string }>("user_course", { _id: userCourseId });
+    const record = rows[0];
+    if (record) {
+      const cats = await this.readTable<{ _id: string }>("category", { course_id: record.course_id });
+      await Promise.all(
+        cats.map(async (cat) => {
+          const groups = await this.readTable<{ _id: string }>("group", { category_id: cat._id });
+          await Promise.all(
+            groups.map(async (g) => {
+              const ug = await this.readTable<{ _id: string }>("user_group", { group_id: g._id, user_id: record.user_id });
+              await Promise.all(ug.map((r) => this.deleteRecord("user_group", r._id)));
+            }),
+          );
+        }),
+      );
+    }
     await this.deleteRecord("user_course", userCourseId);
   }
 
