@@ -2,11 +2,12 @@ import { COURSE_DETAIL_SVG } from "@/assets/svgs/courseDetail";
 import { Button } from "@/core/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/core/components/ui/drawer";
 import { Text } from "@/core/components/ui/text";
+import { parseCsvLine } from "@/core/lib/utils";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Category } from "@/features/courses/domain/entities/course";
-import { CategoryDrawer } from "@/features/courses/presentation/components/category-drawer";
 import { CategoriasTab, CategoryWithData } from "@/features/courses/presentation/components/categorias-tab";
-import { EvaluacionesTab, EvalListItem } from "@/features/courses/presentation/components/evaluaciones-tab";
+import { CategoryDrawer } from "@/features/courses/presentation/components/category-drawer";
+import { EvalListItem, EvaluacionesTab } from "@/features/courses/presentation/components/evaluaciones-tab";
 import { AddCategoryForm } from "@/features/courses/presentation/components/forms/add-category-form";
 import { EnrollStudentsForm } from "@/features/courses/presentation/components/forms/enroll-students-form";
 import { UpdateCourseForm } from "@/features/courses/presentation/components/forms/update-course-form";
@@ -16,7 +17,6 @@ import { CreateEvaluationForm } from "@/features/evaluation/presentation/compone
 import { EditEvaluationForm, EditEvaluationFormHandle } from "@/features/evaluation/presentation/components/forms/edit-evaluation-form";
 import { EvaluationCriteriaForm } from "@/features/evaluation/presentation/components/forms/evaluation-criteria-form";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
-import { parseCsvLine } from "@/core/lib/utils";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -295,11 +295,18 @@ export function ProfessorCourseDetailScreen() {
                 onPress={handleImportCsv}
                 disabled={isImporting}
                 className="rounded-full"
-                style={{ paddingHorizontal: 16, paddingVertical: 8, marginBottom: 10 }}
+                style={{ paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10 }}
               >
                 <Text>{isImporting ? "..." : "Importar"}</Text>
               </Button>
             )}
+            <Button
+              onPress={tab === "evaluaciones" ? () => setIsCreateEvalOpen(true) : () => setIsCreateCatOpen(true)}
+              className="rounded-full"
+              style={{ paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10, marginLeft: 10 }}
+            >
+              <Text>{tab === "evaluaciones" ? "Añadir" : "Añadir"}</Text>
+            </Button>
           </View>
 
           {isLoading ? (
@@ -309,13 +316,11 @@ export function ProfessorCourseDetailScreen() {
           ) : tab === "evaluaciones" ? (
             <EvaluacionesTab
               evalList={evalList}
-              onCreateEval={() => setIsCreateEvalOpen(true)}
               onEditEval={setEditEval}
             />
           ) : (
             <CategoriasTab
               categoryData={categoryData}
-              onCreateCategory={() => setIsCreateCatOpen(true)}
               onSelectCategory={setSelectedCategory}
             />
           )}
