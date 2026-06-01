@@ -11,7 +11,6 @@ import { AddCategoryForm } from "@/features/courses/presentation/components/form
 import { EnrollStudentsForm } from "@/features/courses/presentation/components/forms/enroll-students-form";
 import { UpdateCourseForm } from "@/features/courses/presentation/components/forms/update-course-form";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
-import { ResultEvaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { CreateEvaluationForm } from "@/features/evaluation/presentation/components/forms/create-evaluation-form";
 import { EditEvaluationForm, EditEvaluationFormHandle } from "@/features/evaluation/presentation/components/forms/edit-evaluation-form";
 import { EvaluationCriteriaForm } from "@/features/evaluation/presentation/components/forms/evaluation-criteria-form";
@@ -30,6 +29,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { Circle, Svg } from "react-native-svg";
 import { SvgXml } from "react-native-svg";
 
 const PRIMARY = "#818CF8";
@@ -55,7 +55,18 @@ export function ProfessorCourseDetailScreen() {
   const [criteriaScores, setCriteriaScores] = useState<{ criteriumId: string; name: string; avg: number }[]>([]);
   const editFormRef = useRef<EditEvaluationFormHandle>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Local state mutation helpers — avoid full reload after single-item changes
+  const mutateCategoryAdd = useCallback((cat: Category) =>
+    setCategoryData((prev) => [...prev, { category: cat, evaluation: null, groups: [] }]), []);
+  const mutateCategoryUpdate = useCallback((cat: Category) =>
+    setCategoryData((prev) => prev.map((cd) => cd.category._id === cat._id ? { ...cd, category: cat } : cd)), []);
+  const mutateCategoryDelete = useCallback((catId: string) =>
+    setCategoryData((prev) => prev.filter((cd) => cd.category._id !== catId)), []);
+  const mutateEvaluationSet = useCallback((catId: string, ev: import("@/features/evaluation/domain/entities/evaluation").Evaluation | null) =>
+    setCategoryData((prev) => prev.map((cd) => cd.category._id === catId ? { ...cd, evaluation: ev } : cd)), []);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ completed: number; total: number } | null>(null);
   const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
   const [editEval, setEditEval] = useState<EvalListItem | null>(null);
   const [isSavingEval, setIsSavingEval] = useState(false);
@@ -83,13 +94,9 @@ export function ProfessorCourseDetailScreen() {
       setCategoryData(withData);
 
       if (myCriteria.length > 0) {
-        const allResults: ResultEvaluation[] = [];
-        for (const cd of withData) {
-          for (const g of cd.groups) {
-            const res = await getResultsByGroup(g._id);
-            allResults.push(...res);
-          }
-        }
+        const allResults = (await Promise.all(
+          withData.flatMap((cd) => cd.groups.map((g) => getResultsByGroup(g._id)))
+        )).flat();
         const scores = myCriteria.map((c) => {
           const vals = allResults.filter((r) => r.criterium_id === c._id).map((r) => Number(r.score));
           const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
@@ -120,20 +127,24 @@ export function ProfessorCourseDetailScreen() {
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
       setIsImporting(true);
+      setImportProgress({ completed: 0, total: 1 });
       let content: string;
       if (Platform.OS === "web") {
         content = await fetch(asset.uri).then((r) => r.text());
       } else {
         const FS = require("expo-file-system");
-        content = await new FS.File(asset.uri).text();
+        content = await FS.readAsStringAsync(asset.uri, { encoding: "utf8" });
       }
-      await importGroupsCsv(courseId!, content);
+      await importGroupsCsv(courseId!, content, (completed, total) => {
+        setImportProgress({ completed, total });
+      });
       await load();
       Alert.alert("Importación completa", "Las categorías y grupos se han creado correctamente.");
     } catch (e: any) {
       Alert.alert("Error al importar", e.message ?? "No se pudo procesar el archivo.");
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -144,9 +155,10 @@ export function ProfessorCourseDetailScreen() {
     if (!values.title.trim()) return;
     try {
       setIsSavingEval(true);
-      await updateEvaluation({ ...editEval.evaluation, title: values.title.trim(), description: values.description.trim(), end_date: values.endDate.trim(), category_id: values.categoryId });
+      const updated = { ...editEval.evaluation, title: values.title.trim(), description: values.description.trim(), end_date: values.endDate.trim(), category_id: values.categoryId };
+      await updateEvaluation(updated);
+      mutateEvaluationSet(updated.category_id, updated);
       setEditEval(null);
-      await load();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo guardar.");
     } finally {
@@ -159,8 +171,8 @@ export function ProfessorCourseDetailScreen() {
     try {
       setIsDeletingEval(true);
       await deleteEvaluation(editEval.evaluation._id);
+      mutateEvaluationSet(editEval.evaluation.category_id, null);
       setEditEval(null);
-      await load();
     } catch (e: any) {
       setConfirmDeleteEval(false);
       Alert.alert("Error", e.message ?? "No se pudo eliminar.");
@@ -256,15 +268,21 @@ export function ProfessorCourseDetailScreen() {
               </TabsList>
             </Tabs>
             {tab === "categorias" && (
-              <Button
-                variant="secondary"
-                onPress={handleImportCsv}
-                disabled={isImporting}
-                className="rounded-full"
-                style={{ paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10 }}
-              >
-                <Text>{isImporting ? "..." : "Importar"}</Text>
-              </Button>
+              isImporting && importProgress ? (
+                <View style={{ marginBottom: 10, alignItems: "center", justifyContent: "center", width: 38, height: 38 }}>
+                  <CircleProgress completed={importProgress.completed} total={importProgress.total} size={38} />
+                </View>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onPress={handleImportCsv}
+                  disabled={isImporting}
+                  className="rounded-full"
+                  style={{ paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10 }}
+                >
+                  <Text>Importar</Text>
+                </Button>
+              )
             )}
             <Button
               onPress={tab === "evaluaciones" ? () => setIsCreateEvalOpen(true) : () => setIsCreateCatOpen(true)}
@@ -285,10 +303,27 @@ export function ProfessorCourseDetailScreen() {
               onEditEval={setEditEval}
             />
           ) : (
-            <CategoriasTab
-              categoryData={categoryData}
-              onSelectCategory={setSelectedCategory}
-            />
+            <>
+              <CategoriasTab
+                categoryData={categoryData}
+                onSelectCategory={setSelectedCategory}
+                suppressEmpty={isImporting}
+              />
+              {isImporting && importProgress && (
+                <View style={{ paddingHorizontal: 20 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18 }}>
+                    <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center", justifyContent: "center", marginRight: 14 }}>
+                      <CircleProgress completed={importProgress.completed} total={importProgress.total} size={34} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "700", fontSize: 15, color: "#818CF8" }}>Importando categorías...</Text>
+                      <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>No cierres ni recargues la pantalla</Text>
+                    </View>
+                  </View>
+                  <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -306,7 +341,11 @@ export function ProfessorCourseDetailScreen() {
               <View style={{ width: 50 }} />
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
-              <CreateEvaluationForm courseId={courseId!} onCancel={async () => { setIsCreateEvalOpen(false); await load(); }} />
+              <CreateEvaluationForm
+                courseId={courseId!}
+                onCreated={(ev) => { mutateEvaluationSet(ev.category_id, ev); setIsCreateEvalOpen(false); }}
+                onCancel={() => setIsCreateEvalOpen(false)}
+              />
             </ScrollView>
           </View>
         </DrawerContent>
@@ -381,7 +420,11 @@ export function ProfessorCourseDetailScreen() {
               <View style={{ width: 50 }} />
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
-              <AddCategoryForm courseId={courseId!} onCancel={async () => { setIsCreateCatOpen(false); await load(); }} />
+              <AddCategoryForm
+                courseId={courseId!}
+                onCreated={(cat) => { mutateCategoryAdd(cat); setIsCreateCatOpen(false); }}
+                onCancel={() => setIsCreateCatOpen(false)}
+              />
             </ScrollView>
           </View>
         </DrawerContent>
@@ -400,7 +443,13 @@ export function ProfessorCourseDetailScreen() {
               <View style={{ width: 50 }} />
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
-              {course && <UpdateCourseForm course={course} onCancel={() => setIsEditCourseOpen(false)} />}
+              {course && (
+                <UpdateCourseForm
+                  course={course}
+                  onCancel={() => setIsEditCourseOpen(false)}
+                  onDeleted={() => router.replace("/home" as any)}
+                />
+              )}
             </ScrollView>
           </View>
         </DrawerContent>
@@ -418,7 +467,9 @@ export function ProfessorCourseDetailScreen() {
               <Text variant="h4" className="text-center flex-1">ESTUDIANTES</Text>
               <View style={{ width: 50 }} />
             </View>
-            {courseId && <EnrollStudentsForm courseId={courseId} />}
+            <View style={{ flex: 1 }}>
+              {courseId && <EnrollStudentsForm courseId={courseId} />}
+            </View>
           </View>
         </DrawerContent>
       </Drawer>
@@ -430,9 +481,41 @@ export function ProfessorCourseDetailScreen() {
           category={selectedCategory}
           open={!!selectedCategory}
           onClose={() => setSelectedCategory(null)}
-          onUpdated={() => { setSelectedCategory(null); load(); }}
+          onCategoryUpdated={(cat) => { mutateCategoryUpdate(cat); setSelectedCategory(null); }}
+          onCategoryDeleted={(catId) => { mutateCategoryDelete(catId); setSelectedCategory(null); }}
         />
       )}
+    </View>
+  );
+}
+
+function CircleProgress({ completed, total, size = 48 }: { completed: number; total: number; size?: number }) {
+  const sw = 4;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = total > 0 ? completed / total : 0;
+  const offset = circ * (1 - pct);
+  const c = size / 2;
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} style={{ position: "absolute" }}>
+        <Circle cx={c} cy={c} r={r} stroke="#F3F4F6" strokeWidth={sw} fill="none" />
+        <Circle
+          cx={c} cy={c} r={r}
+          stroke="#818CF8"
+          strokeWidth={sw}
+          fill="none"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${c} ${c})`}
+        />
+      </Svg>
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ fontSize: 8, fontWeight: "700", color: "#111827", lineHeight: 10 }}>
+          {completed}/{total}
+        </Text>
+      </View>
     </View>
   );
 }

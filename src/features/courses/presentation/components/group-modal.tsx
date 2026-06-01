@@ -24,7 +24,7 @@ type CreateProps = {
   categoryId: string;
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (group: Group) => void;
 };
 
 type EditProps = {
@@ -47,10 +47,16 @@ export function GroupModal(props: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [hasMembersChanged, setHasMembersChanged] = useState(false);
 
   const isSaveDisabled = props.mode === "create"
     ? isSaving || !name.trim()
     : isSaving || name.trim() === originalName;
+
+  const handleClose = () => {
+    if (props.mode === "edit" && hasMembersChanged) props.onUpdated();
+    props.onClose();
+  };
 
   const handleSave = async () => {
     Keyboard.dismiss();
@@ -58,8 +64,8 @@ export function GroupModal(props: Props) {
     if (props.mode === "create") {
       try {
         setIsSaving(true);
-        await addGroup({ name: name.trim(), category_id: props.categoryId });
-        props.onCreated();
+        const created = await addGroup({ name: name.trim(), category_id: props.categoryId });
+        props.onCreated(created);
       } catch (e: any) {
         Alert.alert("Error", e.message ?? "No se pudo crear el grupo.");
       } finally {
@@ -96,7 +102,7 @@ export function GroupModal(props: Props) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={(o) => { if (!o) props.onClose(); }}>
+    <Dialog open={props.open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="p-0 gap-0 sm:w-[480px] sm:max-w-[480px]">
         <DialogTitle style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}>
           {props.mode === "create" ? "Crear grupo" : "Editar grupo"}
@@ -105,7 +111,7 @@ export function GroupModal(props: Props) {
         <View style={{ flexDirection: "column" }}>
           {/* Fixed header */}
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
-            <Button variant="secondary" onPress={props.onClose} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
+            <Button variant="secondary" onPress={handleClose} className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center">
               <X size={20} color="#1F265E" />
             </Button>
             <Text variant="h4" className="text-center flex-1">
@@ -139,6 +145,7 @@ export function GroupModal(props: Props) {
                 group={props.group}
                 courseId={props.courseId}
                 categoryId={props.categoryId}
+                onMembersChanged={() => setHasMembersChanged(true)}
               />
             )}
           </ScrollView>
@@ -180,7 +187,7 @@ export function GroupModal(props: Props) {
 
 // ─── Members section (edit mode only) ─────────────────────────────────────────
 
-function MembersSection({ group, courseId, categoryId }: { group: Group; courseId: string; categoryId: string }) {
+function MembersSection({ group, courseId, categoryId, onMembersChanged }: { group: Group; courseId: string; categoryId: string; onMembersChanged: () => void }) {
   const {
     getGroupsByCategory,
     getGroupMembersDetail,
@@ -229,6 +236,7 @@ function MembersSection({ group, courseId, categoryId }: { group: Group; courseI
     if (!userId) return;
     try {
       await addMemberToGroup(userId, group._id);
+      onMembersChanged();
       await load();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo añadir el miembro.");
@@ -239,6 +247,7 @@ function MembersSection({ group, courseId, categoryId }: { group: Group; courseI
     setRemoving(userGroupId);
     try {
       await removeMemberFromGroup(userGroupId);
+      onMembersChanged();
       await load();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo remover el miembro.");

@@ -69,6 +69,20 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
     }
   }
 
+  private async insertAndReturn<T>(tableName: string, record: Record<string, unknown>): Promise<T | null> {
+    const response = await this.authorizedFetch(`${this.baseUrl}/insert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tableName, records: [record] }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(`Error insertando en ${tableName}: ${body.message ?? response.status}`);
+    }
+    const data = await response.json().catch(() => null);
+    return data?.[0] ?? null;
+  }
+
   private async deleteRecord(tableName: string, id: string): Promise<void> {
     const response = await this.authorizedFetch(`${this.baseUrl}/delete`, {
       method: "DELETE",
@@ -154,8 +168,10 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
     return rows[0] ?? null;
   }
 
-  async createEvaluation(evaluation: NewEvaluation): Promise<void> {
-    await this.insertRecord("evaluation", evaluation as Record<string, unknown>);
+  async createEvaluation(evaluation: NewEvaluation): Promise<Evaluation> {
+    const created = await this.insertAndReturn<Evaluation>("evaluation", evaluation as Record<string, unknown>);
+    if (!created) throw new Error("No se pudo crear la evaluación.");
+    return created;
   }
 
   async updateEvaluation({ _id, ...updates }: Evaluation): Promise<void> {

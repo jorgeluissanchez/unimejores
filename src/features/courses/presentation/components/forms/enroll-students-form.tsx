@@ -13,7 +13,7 @@ import { StudentEnrollment } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import { Minus } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
 
 type Props = { courseId: string };
 
@@ -78,9 +78,9 @@ export function EnrollStudentsForm({ courseId }: Props) {
   };
 
   return (
-    <View className="gap-6">
-      {/* ── Combobox ── */}
-      <View className="gap-1.5" style={{ zIndex: 10 }}>
+    <View style={{ flex: 1 }}>
+      {/* ── Combobox fijo ── */}
+      <View className="gap-1.5" style={{ zIndex: 10, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
         <Label>Agregar estudiante</Label>
         <Combobox value={undefined} onValueChange={handleSelect}>
           <ComboboxInput placeholder="Buscar por nombre o correo..." filterFn={setQuery} />
@@ -95,10 +95,12 @@ export function EnrollStudentsForm({ courseId }: Props) {
         </Combobox>
       </View>
 
-      {/* ── Inscritos ── */}
-      <View className="gap-3">
+      {/* ── Inscritos scrolleable ── */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
         <Text className="text-sm text-primary mb-3">INSCRITOS</Text>
         <View className="h-[1px] bg-primary" />
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
         {isLoading ? (
           <View className="py-8 items-center">
             <ActivityIndicator color="#818CF8" />
@@ -133,7 +135,7 @@ export function EnrollStudentsForm({ courseId }: Props) {
             </View>
           ))
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }

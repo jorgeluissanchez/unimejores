@@ -41,17 +41,17 @@ type CourseContextType = {
   getUserById: (userId: string) => Promise<CourseUser | null>;
 
   // Professor: course CRUD
-  addCourse: (course: NewCourse) => Promise<void>;
+  addCourse: (course: NewCourse) => Promise<Course>;
   updateCourse: (course: Course) => Promise<void>;
   deleteCourse: (id: string) => Promise<void>;
 
   // Professor: category CRUD
-  addCategory: (category: NewCategory) => Promise<void>;
+  addCategory: (category: NewCategory) => Promise<Category>;
   updateCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 
   // Professor: group CRUD
-  addGroup: (group: NewGroup) => Promise<void>;
+  addGroup: (group: NewGroup) => Promise<Group>;
   updateGroup: (group: Group) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
   addMemberToGroup: (userId: string, groupId: string) => Promise<void>;
@@ -63,7 +63,7 @@ type CourseContextType = {
   addStudentToCourse: (courseId: string, userId: string) => Promise<void>;
   removeStudentFromCourse: (userCourseId: string) => Promise<void>;
   getUserByEmail: (email: string) => Promise<{ userId: string; name: string; email: string } | null>;
-  importGroupsCsv: (courseId: string, csvContent: string) => Promise<void>;
+  importGroupsCsv: (courseId: string, csvContent: string, onProgress?: (completed: number, total: number) => void) => Promise<void>;
 };
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -151,7 +151,11 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
     getMembersByGroupIds: (groupId) => repo.getMembersByGroupIds(groupId),
     getUserById: (userId) => repo.getUserById(userId),
 
-    addCourse: (course) => wrap(() => repo.addCourse(course))(),
+    addCourse: async (course) => {
+      const created = await repo.addCourse(course);
+      setCourses((prev) => [...prev, created]);
+      return created;
+    },
     updateCourse: (course) => wrap(() => repo.updateCourse(course))(),
     deleteCourse: (id) => wrap(() => repo.deleteCourse(id))(),
 
@@ -170,7 +174,7 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
     addStudentToCourse: (courseId, userId) => repo.addStudentToCourse(courseId, userId),
     removeStudentFromCourse: (userCourseId) => repo.removeStudentFromCourse(userCourseId),
     getUserByEmail: (email) => repo.getUserByEmail(email),
-    importGroupsCsv: (courseId, csvContent) => repo.importGroupsCsv(courseId, csvContent),
+    importGroupsCsv: (courseId, csvContent, onProgress) => repo.importGroupsCsv(courseId, csvContent, onProgress),
   }), [courses, isLoading, error, pendingEvaluations, pendingLoading, repo, wrap]);
 
   return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;

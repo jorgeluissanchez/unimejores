@@ -22,19 +22,19 @@ export interface CourseDataSource {
 
   // Professor: courses
   getMyCreatedCourses(userId: string): Promise<Course[]>;
-  addCourse(course: NewCourse): Promise<void>;
+  addCourse(course: NewCourse): Promise<Course>;
   updateCourse(course: Course): Promise<void>;
   deleteCourse(id: string): Promise<void>;
 
   // Professor: categories
   getCategoriesByCourse(courseId: string): Promise<Category[]>;
-  addCategory(category: NewCategory): Promise<void>;
+  addCategory(category: NewCategory): Promise<Category>;
   updateCategory(category: Category): Promise<void>;
   deleteCategory(id: string): Promise<void>;
 
   // Professor: groups
   getGroupsByCategory(categoryId: string): Promise<Group[]>;
-  addGroup(group: NewGroup): Promise<void>;
+  addGroup(group: NewGroup): Promise<Group>;
   updateGroup(group: Group): Promise<void>;
   deleteGroup(groupId: string): Promise<void>;
 
@@ -52,5 +52,5 @@ export interface CourseDataSource {
   getUserByEmail(email: string): Promise<{ userId: string; name: string; email: string } | null>;
 
   // CSV import (professor)
-  importGroupsCsv(courseId: string, csvContent: string): Promise<void>;
+  importGroupsCsv(courseId: string, csvContent: string, onProgress?: (completed: number, total: number) => void): Promise<void>;
 }

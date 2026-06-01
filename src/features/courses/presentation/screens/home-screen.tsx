@@ -159,38 +159,46 @@ function ProfessorHome() {
     if (courses.length === 0) { setProgressItems([]); return; }
     setProgressLoading(true);
     try {
-      const all: EvalProgressItem[] = [];
-      for (const course of courses) {
-        const cats = await getCategoriesByCourse(course._id);
-        for (const cat of cats) {
-          const [ev, groups] = await Promise.all([
-            getEvaluationByCategory(cat._id),
-            getGroupsByCategory(cat._id),
-          ]);
-          if (!ev || groups.length === 0) continue;
-          let total = 0;
-          const completedSet = new Set<string>();
-          await Promise.all(
-            groups.map(async (g) => {
-              const [members, results] = await Promise.all([
-                getMembersByGroup(g._id),
-                getResultsByGroup(g._id),
-              ]);
-              total += members.length;
-              results.forEach((r) => completedSet.add(r.evaluator_id));
-            }),
-          );
-          all.push({
-            evaluationId: ev._id,
-            title: ev.title,
-            courseName: course.name,
-            endDate: ev.end_date,
-            completed: Math.min(completedSet.size, total),
-            total,
-          });
-        }
-      }
-      setProgressItems(all);
+      // fetch all categories for all courses in parallel
+      const courseCats = await Promise.all(
+        courses.map(async (course) => ({ course, cats: await getCategoriesByCourse(course._id) }))
+      );
+
+      // fetch eval + groups for every category in parallel (flattened)
+      const items = (await Promise.all(
+        courseCats.flatMap(({ course, cats }) =>
+          cats.map(async (cat): Promise<EvalProgressItem | null> => {
+            const [ev, groups] = await Promise.all([
+              getEvaluationByCategory(cat._id),
+              getGroupsByCategory(cat._id),
+            ]);
+            if (!ev || groups.length === 0) return null;
+
+            const groupData = await Promise.all(
+              groups.map(async (g) => {
+                const [members, results] = await Promise.all([
+                  getMembersByGroup(g._id),
+                  getResultsByGroup(g._id),
+                ]);
+                return { members, results };
+              }),
+            );
+
+            const total = groupData.reduce((s, { members }) => s + members.length, 0);
+            const completedSet = new Set(groupData.flatMap(({ results }) => results.map((r) => r.evaluator_id)));
+            return {
+              evaluationId: ev._id,
+              title: ev.title,
+              courseName: course.name,
+              endDate: ev.end_date,
+              completed: Math.min(completedSet.size, total),
+              total,
+            };
+          }),
+        ),
+      )).filter((x): x is EvalProgressItem => x !== null);
+
+      setProgressItems(items);
     } catch {
       setProgressItems([]);
     } finally {

@@ -3,14 +3,15 @@ import { Input } from "@/core/components/ui/input";
 import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Textarea } from "@/core/components/ui/textarea";
+import { Category } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import React, { useState } from "react";
 import { Keyboard, View } from "react-native";
 
-type Props = { courseId: string; onCancel: () => void };
+type Props = { courseId: string; onCreated: (cat: Category) => void; onCancel: () => void };
 type Errors = { name?: string };
 
-export function AddCategoryForm({ courseId, onCancel }: Props) {
+export function AddCategoryForm({ courseId, onCreated, onCancel }: Props) {
   const { addCategory } = useCourses();
 
   const [name, setName] = useState("");
@@ -27,10 +28,11 @@ export function AddCategoryForm({ courseId, onCancel }: Props) {
   const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!validate()) return;
-    await addCategory({ name: name.trim(), description: description.trim(), course_id: courseId });
+    const created = await addCategory({ name: name.trim(), description: description.trim(), course_id: courseId });
     setName("");
     setDescription("");
     setErrors({});
+    onCreated(created);
     onCancel();
   };
 

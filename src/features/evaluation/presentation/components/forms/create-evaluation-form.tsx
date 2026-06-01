@@ -13,14 +13,15 @@ import { Text } from "@/core/components/ui/text";
 import { Textarea } from "@/core/components/ui/textarea";
 import { Category } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
+import { Evaluation } from "@/features/evaluation/domain/entities/evaluation";
 import { useEvaluation } from "@/features/evaluation/presentation/context/evaluation-context";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Keyboard, View } from "react-native";
 
-type Props = { courseId: string; onCancel: () => void };
+type Props = { courseId: string; onCreated: (ev: Evaluation) => void; onCancel: () => void };
 type Errors = { title?: string; category?: string };
 
-export function CreateEvaluationForm({ courseId, onCancel }: Props) {
+export function CreateEvaluationForm({ courseId, onCreated, onCancel }: Props) {
   const { getCategoriesByCourse } = useCourses();
   const { createEvaluation } = useEvaluation();
 
@@ -58,13 +59,14 @@ export function CreateEvaluationForm({ courseId, onCancel }: Props) {
     if (!validate()) return;
     try {
       setIsSaving(true);
-      await createEvaluation({
+      const created = await createEvaluation({
         title: title.trim(),
         description: description.trim(),
         start_date: new Date().toISOString().split("T")[0],
         end_date: endDate.trim(),
         category_id: categoryId!,
       });
+      onCreated(created);
       onCancel();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo crear la evaluación.");

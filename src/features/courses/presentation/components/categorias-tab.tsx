@@ -17,12 +17,13 @@ export type CategoryWithData = {
 type Props = {
   categoryData: CategoryWithData[];
   onSelectCategory: (category: Category) => void;
+  suppressEmpty?: boolean;
 };
 
-export function CategoriasTab({ categoryData, onSelectCategory }: Props) {
+export function CategoriasTab({ categoryData, onSelectCategory, suppressEmpty }: Props) {
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}>
-      {categoryData.length === 0 && (
+    <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: suppressEmpty ? 0 : 40 }}>
+      {categoryData.length === 0 && !suppressEmpty && (
         <View style={{ paddingVertical: 40, alignItems: "center" }}>
           <Text style={{ color: "#9CA3AF" }}>Sin categorías aún</Text>
         </View>

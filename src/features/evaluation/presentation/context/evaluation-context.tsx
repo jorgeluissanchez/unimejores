@@ -38,7 +38,7 @@ type EvaluationContextType = {
 
   // Professor: evaluation management
   getEvaluationByCategory: (categoryId: string) => Promise<Evaluation | null>;
-  createEvaluation: (evaluation: NewEvaluation) => Promise<void>;
+  createEvaluation: (evaluation: NewEvaluation) => Promise<Evaluation>;
   updateEvaluation: (evaluation: Evaluation) => Promise<void>;
   deleteEvaluation: (id: string) => Promise<void>;
   getCriteriaForEvaluation: (evaluationId: string) => Promise<Criterium[]>;

@@ -171,8 +171,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     return this.readTable<Course>("course", { created_by: userId });
   }
 
-  async addCourse(course: NewCourse): Promise<void> {
-    await this.insertRecord("course", course as Record<string, unknown>);
+  async addCourse(course: NewCourse): Promise<Course> {
+    const created = await this.insertAndReturn<Course>("course", course as Record<string, unknown>);
+    if (!created) throw new Error("No se pudo crear el curso.");
+    return created;
   }
 
   async updateCourse({ _id, ...updates }: Course): Promise<void> {
@@ -193,8 +195,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     return this.readTable<Category>("category", { course_id: courseId });
   }
 
-  async addCategory(category: NewCategory): Promise<void> {
-    await this.insertRecord("category", category as Record<string, unknown>);
+  async addCategory(category: NewCategory): Promise<Category> {
+    const created = await this.insertAndReturn<Category>("category", category as Record<string, unknown>);
+    if (!created) throw new Error("No se pudo crear la categoría.");
+    return created;
   }
 
   async updateCategory({ _id, ...updates }: Category): Promise<void> {
@@ -221,8 +225,10 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     return this.readTable<Group>("group", { category_id: categoryId });
   }
 
-  async addGroup(group: NewGroup): Promise<void> {
-    await this.insertRecord("group", group as Record<string, unknown>);
+  async addGroup(group: NewGroup): Promise<Group> {
+    const created = await this.insertAndReturn<Group>("group", group as Record<string, unknown>);
+    if (!created) throw new Error("No se pudo crear el grupo.");
+    return created;
   }
 
   async updateGroup({ _id, ...updates }: Group): Promise<void> {
@@ -332,7 +338,7 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     return { userId: rows[0].user_id, name: rows[0].name, email: rows[0].email };
   }
 
-  async importGroupsCsv(courseId: string, csvContent: string): Promise<void> {
+  async importGroupsCsv(courseId: string, csvContent: string, onProgress?: (completed: number, total: number) => void): Promise<void> {
     const text = csvContent.replace(/^﻿/, "");
     const lines = text.split(/\r?\n/).filter((l: string) => l.trim());
     if (lines.length < 2) throw new Error("El CSV está vacío o no tiene datos.");
@@ -347,54 +353,100 @@ export class CourseRemoteDataSourceImpl implements CourseDataSource {
     if (catIdx < 0) throw new Error("El CSV debe tener columna 'Group Category Name'.");
     if (grpIdx < 0) throw new Error("El CSV debe tener columna 'Group Name'.");
 
-    // Load existing categories and groups into maps to avoid redundant reads
-    const existingCats = await this.readTable<{ _id: string; name: string }>("category", { course_id: courseId });
-    const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c._id]));
-
-    const groupMap = new Map<string, string>(); // "catId|groupNameKey" -> groupId
-    for (const cat of existingCats) {
-      const groups = await this.readTable<{ _id: string; name: string }>("group", { category_id: cat._id });
-      for (const g of groups) groupMap.set(`${cat._id}|${g.name.toLowerCase().trim()}`, g._id);
-    }
-
+    // ── Phase 1: Parse all rows ───────────────────────────────────────────────
+    type ParsedRow = { catName: string; grpName: string; email: string; fullName: string };
+    const rows: ParsedRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       const catName = cols[catIdx]?.trim();
       const grpName = cols[grpIdx]?.trim();
-      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : undefined;
+      const email = emailIdx >= 0 ? cols[emailIdx]?.trim().toLowerCase() : "";
       const firstName = firstNameIdx >= 0 ? (cols[firstNameIdx]?.trim() ?? "") : "";
       const lastName = lastNameIdx >= 0 ? (cols[lastNameIdx]?.trim() ?? "") : "";
-      const fullName = [firstName, lastName].filter(Boolean).join(" ");
       if (!catName || !grpName) continue;
+      rows.push({ catName, grpName, email: email ?? "", fullName: [firstName, lastName].filter(Boolean).join(" ") });
+    }
+    const total = rows.length;
+    onProgress?.(0, total);
 
-      // Ensure category exists
+    // ── Phase 2: Ensure categories (sequential — usually very few) ────────────
+    const existingCats = await this.readTable<{ _id: string; name: string }>("category", { course_id: courseId });
+    const catMap = new Map(existingCats.map((c) => [c.name.toLowerCase().trim(), c._id]));
+    for (const catName of [...new Set(rows.map((r) => r.catName))]) {
       const catKey = catName.toLowerCase().trim();
       if (!catMap.has(catKey)) {
         const created = await this.insertAndReturn<{ _id: string }>("category", { name: catName, description: "", course_id: courseId });
         if (created?._id) catMap.set(catKey, created._id);
       }
-      const catId = catMap.get(catKey);
-      if (!catId) continue;
-
-      // Ensure group exists
-      const grpKey = `${catId}|${grpName.toLowerCase().trim()}`;
-      if (!groupMap.has(grpKey)) {
-        const created = await this.insertAndReturn<{ _id: string }>("group", { name: grpName, category_id: catId });
-        if (created?._id) groupMap.set(grpKey, created._id);
-      }
-      const groupId = groupMap.get(grpKey);
-      if (!groupId || !email) continue;
-
-      // Ensure user exists (create if needed) then assign to course + group
-      const userId = await this.ensureStudentExists(email, fullName);
-      if (!userId) continue;
-
-      const enrolled = await this.readTable("user_course", { course_id: courseId, user_id: userId });
-      if (enrolled.length === 0) await this.insertRecord("user_course", { course_id: courseId, user_id: userId });
-
-      const inGroup = await this.readTable("user_group", { user_id: userId, group_id: groupId });
-      if (inGroup.length === 0) await this.insertRecord("user_group", { user_id: userId, group_id: groupId });
     }
+
+    // ── Phase 3: Load existing groups in parallel, then create missing ones ───
+    const catIds = [...catMap.values()];
+    const existingGroupArrays = await Promise.all(
+      catIds.map((catId) => this.readTable<{ _id: string; name: string }>("group", { category_id: catId })),
+    );
+    const groupMap = new Map<string, string>();
+    catIds.forEach((catId, i) => {
+      for (const g of existingGroupArrays[i]) groupMap.set(`${catId}|${g.name.toLowerCase().trim()}`, g._id);
+    });
+    const uniqueGroupKeys = [...new Set(rows.map((r) => `${r.catName}|||${r.grpName}`))];
+    await Promise.all(uniqueGroupKeys.map(async (key) => {
+      const [catName, grpName] = key.split("|||");
+      const catId = catMap.get(catName.toLowerCase().trim());
+      if (!catId) return;
+      const mapKey = `${catId}|${grpName.toLowerCase().trim()}`;
+      if (groupMap.has(mapKey)) return;
+      const created = await this.insertAndReturn<{ _id: string }>("group", { name: grpName, category_id: catId });
+      if (created?._id) groupMap.set(mapKey, created._id);
+    }));
+
+    // ── Phase 4: Pre-fetch all enrollment data in one parallel batch ──────────
+    const allGroupIds = [...groupMap.values()];
+    const [enrolledRecords, ...memberArrays] = await Promise.all([
+      this.readTable<{ user_id: string }>("user_course", { course_id: courseId }),
+      ...allGroupIds.map((gid) => this.readTable<{ user_id: string; group_id: string }>("user_group", { group_id: gid })),
+    ]);
+    const enrolledSet = new Set(enrolledRecords.map((r) => r.user_id));
+    const memberSet = new Set(memberArrays.flat().map((r) => `${r.user_id}|${r.group_id}`));
+
+    // ── Phase 5: Resolve unique users in parallel batches of 5 ────────────────
+    const uniqueEmails = [...new Set(rows.filter((r) => r.email).map((r) => r.email))];
+    const userMap = new Map<string, string>();
+    const BATCH = 5;
+    for (let i = 0; i < uniqueEmails.length; i += BATCH) {
+      const batch = uniqueEmails.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async (email) => {
+        const fullName = rows.find((r) => r.email === email)?.fullName ?? "";
+        const userId = await this.ensureStudentExists(email, fullName);
+        return { email, userId };
+      }));
+      for (const { email, userId } of results) {
+        if (userId) userMap.set(email, userId);
+      }
+      onProgress?.(Math.min(i + BATCH, total), total);
+    }
+
+    // ── Phase 6: Insert missing course + group assignments in parallel ─────────
+    const inserts: Promise<void>[] = [];
+    for (const row of rows) {
+      const userId = row.email ? userMap.get(row.email) : undefined;
+      if (!userId) continue;
+      const catId = catMap.get(row.catName.toLowerCase().trim());
+      if (!catId) continue;
+      const groupId = groupMap.get(`${catId}|${row.grpName.toLowerCase().trim()}`);
+      if (!groupId) continue;
+      if (!enrolledSet.has(userId)) {
+        enrolledSet.add(userId);
+        inserts.push(this.insertRecord("user_course", { course_id: courseId, user_id: userId }));
+      }
+      const mk = `${userId}|${groupId}`;
+      if (!memberSet.has(mk)) {
+        memberSet.add(mk);
+        inserts.push(this.insertRecord("user_group", { user_id: userId, group_id: groupId }));
+      }
+    }
+    await Promise.all(inserts);
+    onProgress?.(total, total);
   }
 
   private decodeJwtSub(token: string): string | null {

@@ -19,10 +19,11 @@ type Props = {
   category: Category;
   open: boolean;
   onClose: () => void;
-  onUpdated: () => void;
+  onCategoryUpdated: (cat: Category) => void;
+  onCategoryDeleted: (catId: string) => void;
 };
 
-export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }: Props) {
+export function CategoryDrawer({ courseId, category, open, onClose, onCategoryUpdated, onCategoryDeleted }: Props) {
   const {
     updateCategory,
     deleteCategory,
@@ -72,9 +73,10 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
     if (!categoryName.trim() || categoryName.trim() === originalName) return;
     try {
       setIsSaving(true);
-      await updateCategory({ ...category, name: categoryName.trim() });
+      const updated = { ...category, name: categoryName.trim() };
+      await updateCategory(updated);
       setOriginalName(categoryName.trim());
-      onUpdated();
+      onCategoryUpdated(updated);
     } catch (e: any) {
       Alert.alert("Error", e.message);
     } finally {
@@ -86,7 +88,8 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
     try {
       setIsDeleting(true);
       await deleteCategory(category._id);
-      onUpdated();
+      onCategoryDeleted(category._id);
+      onClose();
     } catch (e: any) {
       setConfirmDelete(false);
       Alert.alert("Error", e.message ?? "No se pudo eliminar.");
@@ -230,7 +233,10 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
         categoryId={category._id}
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={() => { setIsCreateOpen(false); load(); }}
+        onCreated={(group) => {
+          setGroups((prev) => [...prev, { group, members: [] }]);
+          setIsCreateOpen(false);
+        }}
       />
       {editGroup && (
         <GroupModal
@@ -240,7 +246,10 @@ export function CategoryDrawer({ courseId, category, open, onClose, onUpdated }:
           categoryId={category._id}
           open={!!editGroup}
           onClose={() => setEditGroup(null)}
-          onUpdated={() => load()}
+          onUpdated={() => {
+            load();
+            setEditGroup(null);
+          }}
         />
       )}
     </>

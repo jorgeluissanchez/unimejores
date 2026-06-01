@@ -4,14 +4,15 @@ import { Label } from "@/core/components/ui/label";
 import { Text } from "@/core/components/ui/text";
 import { Textarea } from "@/core/components/ui/textarea";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
+import { Course } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import React, { useState } from "react";
-import { Keyboard, View } from "react-native";
+import { Alert, Keyboard, View } from "react-native";
 
-type Props = { onCancel: () => void };
+type Props = { onCreated?: (course: Course) => void; onCancel: () => void };
 type Errors = { name?: string; nrc?: string };
 
-export function AddCourseForm({ onCancel }: Props) {
+export function AddCourseForm({ onCreated, onCancel }: Props) {
   const { addCourse } = useCourses();
   const { loggedUser } = useAuth();
 
@@ -31,8 +32,13 @@ export function AddCourseForm({ onCancel }: Props) {
   const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!validate() || !loggedUser) return;
-    await addCourse({ name: name.trim(), nrc: nrc.trim(), description: description.trim(), created_by: loggedUser.userId });
-    onCancel();
+    try {
+      const created = await addCourse({ name: name.trim(), nrc: nrc.trim(), description: description.trim(), created_by: loggedUser.userId });
+      onCreated?.(created);
+      onCancel();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo crear el curso.");
+    }
   };
 
   return (

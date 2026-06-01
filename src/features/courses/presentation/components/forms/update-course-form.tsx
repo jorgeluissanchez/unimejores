@@ -6,18 +6,21 @@ import { Textarea } from "@/core/components/ui/textarea";
 import { Course } from "@/features/courses/domain/entities/course";
 import { useCourses } from "@/features/courses/presentation/context/course-context";
 import React, { useEffect, useState } from "react";
-import { Keyboard, View } from "react-native";
+import { ActivityIndicator, Alert, Keyboard, View } from "react-native";
 
-type Props = { course: Course; onCancel: () => void };
+type Props = { course: Course; onCancel: () => void; onDeleted?: () => void };
 type Errors = { name?: string; nrc?: string };
 
-export function UpdateCourseForm({ course, onCancel }: Props) {
-  const { updateCourse } = useCourses();
+export function UpdateCourseForm({ course, onCancel, onDeleted }: Props) {
+  const { updateCourse, deleteCourse } = useCourses();
 
   const [name, setName] = useState(course.name);
   const [nrc, setNrc] = useState(course.nrc);
   const [description, setDescription] = useState(course.description);
   const [errors, setErrors] = useState<Errors>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setName(course.name);
@@ -36,8 +39,28 @@ export function UpdateCourseForm({ course, onCancel }: Props) {
   const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!validate()) return;
-    await updateCourse({ ...course, name: name.trim(), nrc: nrc.trim(), description: description.trim() });
-    onCancel();
+    try {
+      setIsSaving(true);
+      await updateCourse({ ...course, name: name.trim(), nrc: nrc.trim(), description: description.trim() });
+      onCancel();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo guardar.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteCourse(course._id);
+      onDeleted?.();
+    } catch (e: any) {
+      setConfirmDelete(false);
+      Alert.alert("Error", e.message ?? "No se pudo eliminar el curso.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -56,9 +79,32 @@ export function UpdateCourseForm({ course, onCancel }: Props) {
         <Label>Descripción</Label>
         <Textarea value={description} onChangeText={setDescription} />
       </View>
-      <Button onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
-        <Text>GUARDAR</Text>
+
+      <Button onPress={handleSubmit} disabled={isSaving || isDeleting} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+        {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Text>GUARDAR</Text>}
       </Button>
+
+      {onDeleted && (
+        confirmDelete ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ textAlign: "center", fontSize: 13, color: "#EF4444", fontWeight: "600" }}>
+              ¿Eliminar "{course.name}"? Esta acción no se puede deshacer.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Button variant="secondary" onPress={() => setConfirmDelete(false)} disabled={isDeleting} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
+                <Text>Cancelar</Text>
+              </Button>
+              <Button variant="destructive" onPress={handleDelete} disabled={isDeleting} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
+                {isDeleting ? <ActivityIndicator size="small" color="#fff" /> : <Text>Eliminar</Text>}
+              </Button>
+            </View>
+          </View>
+        ) : (
+          <Button variant="destructive" onPress={() => setConfirmDelete(true)} disabled={isSaving} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+            <Text>ELIMINAR CURSO</Text>
+          </Button>
+        )
+      )}
     </View>
   );
 }
