@@ -239,3 +239,119 @@ describe('useEvaluation guard', () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe('EvaluationProvider — professor: createEvaluation', () => {
+  const professorUser = { userId: 'p-1', role: 'professor', email: 'prof@a.com', name: 'Prof' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockEvalRepo.getMyCriteria.mockResolvedValue([]);
+  });
+
+  it('calls createEvaluation on the repo and returns the result', async () => {
+    const newEval = { ...mockEvaluation, _id: 'ev-new', evaluation_id: 'ev-new', title: 'Nueva Evaluación' };
+    mockEvalRepo.createEvaluation.mockResolvedValueOnce(newEval);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    let returned: typeof mockEvaluation | undefined;
+    await act(async () => {
+      returned = await result.current.createEvaluation({
+        title: 'Nueva Evaluación',
+        description: '',
+        start_date: new Date().toISOString(),
+        end_date: new Date().toISOString(),
+        category_id: 'cat-1',
+      });
+    });
+
+    expect(returned?._id).toBe('ev-new');
+    expect(mockEvalRepo.createEvaluation).toHaveBeenCalledTimes(1);
+  });
+
+  it('deleteEvaluation calls the repo with the correct id', async () => {
+    mockEvalRepo.deleteEvaluation.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.deleteEvaluation('ev-1');
+    });
+
+    expect(mockEvalRepo.deleteEvaluation).toHaveBeenCalledWith('ev-1');
+  });
+
+  it('updateEvaluation calls the repo with the updated object', async () => {
+    const updated = { ...mockEvaluation, title: 'Evaluación Actualizada' };
+    mockEvalRepo.updateEvaluation.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.updateEvaluation(updated);
+    });
+
+    expect(mockEvalRepo.updateEvaluation).toHaveBeenCalledWith(updated);
+  });
+});
+
+describe('EvaluationProvider — professor: criteria CRUD', () => {
+  const professorUser = { userId: 'p-1', role: 'professor', email: 'prof@a.com', name: 'Prof' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockEvalRepo.getMyCriteria.mockResolvedValue([]);
+  });
+
+  it('addCriterium calls repo and refreshes myCriteria', async () => {
+    const newCrit = { _id: 'c-new', criterium_id: 'c-new', name: 'Test Crit', description: '', max_score: 5, created_by: 'p-1' };
+    mockEvalRepo.addCriterium.mockResolvedValueOnce(undefined);
+    mockEvalRepo.getMyCriteria
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([newCrit]);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.addCriterium({ name: 'Test Crit', description: '', created_by: 'p-1' });
+    });
+
+    expect(result.current.myCriteria).toHaveLength(1);
+    expect(result.current.myCriteria[0]._id).toBe('c-new');
+  });
+
+  it('deleteCriterium calls repo with correct id', async () => {
+    mockEvalRepo.deleteCriterium.mockResolvedValueOnce(undefined);
+    mockEvalRepo.getMyCriteria.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.deleteCriterium('c-1');
+    });
+
+    expect(mockEvalRepo.deleteCriterium).toHaveBeenCalledWith('c-1');
+  });
+
+  it('updateCriterium calls repo with correct criterium', async () => {
+    const updatedCrit = { _id: 'c-1', criterium_id: 'c-1', name: 'Updated', description: 'desc', max_score: 10, created_by: 'p-1' };
+    mockEvalRepo.updateCriterium.mockResolvedValueOnce(undefined);
+    mockEvalRepo.getMyCriteria.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useEvaluation(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.updateCriterium(updatedCrit);
+    });
+
+    expect(mockEvalRepo.updateCriterium).toHaveBeenCalledWith(updatedCrit);
+  });
+});

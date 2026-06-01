@@ -114,7 +114,7 @@ export function ProfessorCategoryGroupsScreen({ courseId, categoryId, onClose }:
         {/* ── Grupos header ── */}
         <View className="flex-row items-center gap-2 mb-3">
           <Text variant="small" className="text-primary tracking-widest uppercase flex-1">Grupos</Text>
-          <Button onPress={() => setIsCreateOpen(true)}>
+          <Button testID="add-group-button" onPress={() => setIsCreateOpen(true)}>
             <Text>Añadir</Text>
           </Button>
         </View>

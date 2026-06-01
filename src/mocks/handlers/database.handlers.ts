@@ -9,6 +9,7 @@ import {
   groups,
   products,
   resultCriteria,
+  resultEvaluationRows,
   resultEvaluations,
   userCourses,
   userGroups,
@@ -31,6 +32,7 @@ const TABLES: Record<string, any[]> = {
   evaluation: evaluations,
   evaluation_criterium: evaluationCriteria,
   resultEvaluation: resultEvaluations,
+  result_evaluation: resultEvaluationRows,
   result_criterium: resultCriteria,
   Product: products,
 };

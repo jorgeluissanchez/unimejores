@@ -45,19 +45,19 @@ export function AddCourseForm({ onCreated, onCancel }: Props) {
     <View className="mt-4 gap-4">
       <View className="gap-1.5">
         <Label>Nombre</Label>
-        <Input value={name} onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }} placeholder="Ej: Cálculo I" className={errors.name ? "border-destructive" : undefined} />
+        <Input testID="course-name-input" value={name} onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }} placeholder="Ej: Cálculo I" className={errors.name ? "border-destructive" : undefined} />
         {!!errors.name && <Text className="text-sm text-destructive">{errors.name}</Text>}
       </View>
       <View className="gap-1.5">
         <Label>NRC</Label>
-        <Input value={nrc} onChangeText={(v) => { setNrc(v); if (errors.nrc) setErrors((e) => ({ ...e, nrc: undefined })); }} placeholder="Ej: 12345" className={errors.nrc ? "border-destructive" : undefined} />
+        <Input testID="course-nrc-input" value={nrc} onChangeText={(v) => { setNrc(v); if (errors.nrc) setErrors((e) => ({ ...e, nrc: undefined })); }} placeholder="Ej: 12345" className={errors.nrc ? "border-destructive" : undefined} />
         {!!errors.nrc && <Text className="text-sm text-destructive">{errors.nrc}</Text>}
       </View>
       <View className="gap-1.5">
         <Label>Descripción</Label>
         <Textarea value={description} onChangeText={setDescription} placeholder="Descripción del curso" />
       </View>
-      <Button onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+      <Button testID="save-course-button" onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
         <Text>GUARDAR</Text>
       </Button>
     </View>

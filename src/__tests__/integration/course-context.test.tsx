@@ -160,3 +160,133 @@ describe('useCourses guard', () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe('CourseProvider — deleteCourse (professor)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockCourseRepo.getPendingEvaluations.mockResolvedValue([]);
+    mockCourseRepo.deleteCourse.mockResolvedValue(undefined);
+  });
+
+  it('removes the course from the list after deleteCourse', async () => {
+    // First load returns the course; after delete the refresh returns empty list
+    mockCourseRepo.getMyCreatedCourses
+      .mockResolvedValueOnce([mockCourse])
+      .mockResolvedValueOnce([]);
+
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+    expect(result.current.courses).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.deleteCourse('c-1');
+    });
+
+    expect(result.current.courses).toHaveLength(0);
+  });
+});
+
+describe('CourseProvider — updateCourse (professor)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockCourseRepo.getMyCreatedCourses.mockResolvedValue([mockCourse]);
+    mockCourseRepo.getPendingEvaluations.mockResolvedValue([]);
+    mockCourseRepo.updateCourse.mockResolvedValue(undefined);
+  });
+
+  it('calls updateCourse on the repo with the updated course', async () => {
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+
+    const updated = { ...mockCourse, name: 'Redes Actualizado' };
+    await act(async () => {
+      await result.current.updateCourse(updated);
+    });
+
+    expect(mockCourseRepo.updateCourse).toHaveBeenCalledWith(updated);
+  });
+});
+
+describe('CourseProvider — addCategory (professor)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockCourseRepo.getMyCreatedCourses.mockResolvedValue([]);
+    mockCourseRepo.getPendingEvaluations.mockResolvedValue([]);
+  });
+
+  it('calls addCategory on the repo with correct args and returns the result', async () => {
+    const newCat = { _id: 'cat-1', name: 'Cat Test', description: '', course_id: 'c-1' };
+    mockCourseRepo.addCategory.mockResolvedValueOnce(newCat);
+
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+
+    let returned: typeof newCat | undefined;
+    await act(async () => {
+      returned = await result.current.addCategory({ name: 'Cat Test', description: '', course_id: 'c-1' });
+    });
+
+    expect(mockCourseRepo.addCategory).toHaveBeenCalledWith({ name: 'Cat Test', description: '', course_id: 'c-1' });
+    expect(returned?._id).toBe('cat-1');
+  });
+});
+
+describe('CourseProvider — deleteCategory (professor)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockCourseRepo.getMyCreatedCourses.mockResolvedValue([]);
+    mockCourseRepo.getPendingEvaluations.mockResolvedValue([]);
+    mockCourseRepo.deleteCategory.mockResolvedValue(undefined);
+  });
+
+  it('calls deleteCategory on the repo', async () => {
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.deleteCategory('cat-1');
+    });
+
+    expect(mockCourseRepo.deleteCategory).toHaveBeenCalledWith('cat-1');
+  });
+});
+
+describe('CourseProvider — addGroup / deleteGroup (professor)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseAuth.mockReturnValue({ loggedUser: professorUser, expireSession: mockExpireSession });
+    mockCourseRepo.getMyCreatedCourses.mockResolvedValue([]);
+    mockCourseRepo.getPendingEvaluations.mockResolvedValue([]);
+  });
+
+  it('calls addGroup on the repo and returns the new group', async () => {
+    const newGroup = { _id: 'g-1', name: 'Group Test', category_id: 'cat-1' };
+    mockCourseRepo.addGroup.mockResolvedValueOnce(newGroup);
+
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+
+    let returned: typeof newGroup | undefined;
+    await act(async () => {
+      returned = await result.current.addGroup({ name: 'Group Test', category_id: 'cat-1' });
+    });
+
+    expect(returned?._id).toBe('g-1');
+  });
+
+  it('calls deleteGroup on the repo', async () => {
+    mockCourseRepo.deleteGroup.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useCourses(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.deleteGroup('g-1');
+    });
+
+    expect(mockCourseRepo.deleteGroup).toHaveBeenCalledWith('g-1');
+  });
+});

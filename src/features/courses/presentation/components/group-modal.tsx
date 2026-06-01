@@ -132,6 +132,7 @@ export function GroupModal(props: Props) {
             <View className="gap-1.5">
               <Label>Nombre</Label>
               <Input
+                testID="group-name-input"
                 value={name}
                 onChangeText={setName}
                 placeholder={props.mode === "create" ? "Ej: Grupo A" : "Nombre del grupo"}
@@ -168,7 +169,7 @@ export function GroupModal(props: Props) {
               </>
             ) : (
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <Button onPress={handleSave} disabled={isSaveDisabled} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
+                <Button testID="save-group-button" onPress={handleSave} disabled={isSaveDisabled} className="flex-1 rounded-full" style={{ paddingVertical: 14 }}>
                   <Text>{isSaving ? "..." : props.mode === "create" ? "Crear" : "Guardar"}</Text>
                 </Button>
                 {props.mode === "edit" && (

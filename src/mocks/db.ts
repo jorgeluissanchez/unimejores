@@ -12,6 +12,10 @@ export const MOCK_USER_ID = "user-logged-in";
 export const MOCK_EMAIL = "estudiante@uninorte.edu.co";
 export const MOCK_PASSWORD = "password123";
 
+export const MOCK_PROF_ID       = 'user-professor';
+export const MOCK_PROF_EMAIL    = 'profesor@uninorte.edu.co';
+export const MOCK_PROF_PASSWORD = 'password123';
+
 export const users = [
   {
     _id: MOCK_USER_ID,
@@ -19,6 +23,14 @@ export const users = [
     name: "Estudiante Demo",
     email: MOCK_EMAIL,
     role: "student",
+    created_at: faker.date.past().toISOString(),
+  },
+  {
+    _id: MOCK_PROF_ID,
+    user_id: MOCK_PROF_ID,
+    name: "Profesor Demo",
+    email: MOCK_PROF_EMAIL,
+    role: "professor",
     created_at: faker.date.past().toISOString(),
   },
   ...Array.from({ length: 8 }, () => {
@@ -61,6 +73,8 @@ export const courses = [
 export const userCourses = [
   { _id: id(), course_id: course1Id, user_id: MOCK_USER_ID, role: "student" },
   { _id: id(), course_id: course2Id, user_id: MOCK_USER_ID, role: "student" },
+  { _id: id(), course_id: course1Id, user_id: MOCK_PROF_ID, role: "professor" },
+  { _id: id(), course_id: course2Id, user_id: MOCK_PROF_ID, role: "professor" },
 ];
 
 // ─── categories ──────────────────────────────────────────────────────────────
@@ -153,6 +167,7 @@ export const criteria = [
     name: "Participación activa",
     description: "¿El compañero participó activamente durante el desarrollo del proyecto?",
     max_score: 5,
+    created_by: MOCK_USER_ID,
   },
   {
     _id: crit2Id,
@@ -160,6 +175,7 @@ export const criteria = [
     name: "Comunicación efectiva",
     description: "¿El compañero se comunicó de forma clara y oportuna con el equipo?",
     max_score: 5,
+    created_by: MOCK_USER_ID,
   },
   {
     _id: crit3Id,
@@ -167,6 +183,7 @@ export const criteria = [
     name: "Calidad del trabajo",
     description: "¿El compañero entregó trabajo de buena calidad?",
     max_score: 5,
+    created_by: MOCK_USER_ID,
   },
   {
     _id: crit4Id,
@@ -174,6 +191,7 @@ export const criteria = [
     name: "Puntualidad",
     description: "¿El compañero cumplió con los tiempos acordados?",
     max_score: 5,
+    created_by: MOCK_USER_ID,
   },
 ];
 
@@ -228,6 +246,19 @@ export type ResultEvaluationRow = {
 };
 
 export const resultEvaluations: ResultEvaluationRow[] = [];
+
+// ─── result_evaluation (mutable — starts empty) ──────────────────────────────
+
+export type ResultEvaluationTableRow = {
+  _id: string;
+  evaluator_id: string;
+  evaluated_id: string;
+  score: string;
+  group_id: string;
+  criterium_id: string;
+};
+
+export const resultEvaluationRows: ResultEvaluationTableRow[] = [];
 
 // ─── result_criterium (mutable — starts empty) ───────────────────────────────
 

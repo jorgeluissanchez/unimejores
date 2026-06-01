@@ -1,0 +1,19 @@
+appId: com.anonymous.unimejores
+---
+- runFlow: helpers/login-student.yaml
+
+# ── Enrolled courses visible ──────────────────────────────────────────────────
+- assertVisible:
+    text: "Ingeniería de Software"
+- assertVisible:
+    text: "Redes de Computadores"
+
+# ── Open first course ─────────────────────────────────────────────────────────
+- tapOn:
+    text: "Ingeniería de Software"
+
+# ── Categories visible ────────────────────────────────────────────────────────
+- assertVisible:
+    text: "Proyecto Final"
+- assertVisible:
+    text: "Parcial 1"

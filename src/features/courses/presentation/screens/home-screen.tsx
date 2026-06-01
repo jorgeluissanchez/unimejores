@@ -281,6 +281,7 @@ function ProfessorHome() {
             <View>
               <View className="items-center my-6">
                 <Button
+                  testID="add-course-button"
                   size="lg"
                   className="rounded-full w-full"
                   style={{ backgroundColor: "#8E97FD", paddingVertical: 18 }}

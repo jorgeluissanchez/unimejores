@@ -1,0 +1,14 @@
+appId: com.anonymous.unimejores
+---
+# ── Happy path: professor login ───────────────────────────────────────────────
+- runFlow: helpers/login-professor.yaml
+- assertVisible:
+    text: "Ingeniería de Software"
+
+# ── Logout ────────────────────────────────────────────────────────────────────
+- tapOn:
+    text: "Ajustes"
+- tapOn:
+    id: "logout-button"
+- assertVisible:
+    id: "login-button"

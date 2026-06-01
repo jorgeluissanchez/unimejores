@@ -15,6 +15,7 @@ export function PeerCard({ user, evaluated, courseId, groupId }: Props) {
   const router = useRouter();
   return (
     <Pressable
+      testID="peer-card"
       onPress={() => {
         router.push({
           pathname: `/course/${courseId}/group/${groupId}/evaluatee/${user.user_id}` as RelativePathString

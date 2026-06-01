@@ -1,0 +1,20 @@
+appId: com.anonymous.unimejores
+---
+- runFlow: helpers/login-professor.yaml
+
+# ── Open existing course ──────────────────────────────────────────────────────
+- tapOn:
+    text: "Ingeniería de Software"
+
+# ── Add a new evaluation ──────────────────────────────────────────────────────
+- tapOn:
+    id: "add-evaluation-button"
+- tapOn:
+    id: "evaluation-title-input"
+    optional: true
+- inputText: "Evaluación E2E Test"
+- tapOn:
+    id: "save-evaluation-button"
+    optional: true
+- assertVisible:
+    text: "Evaluación E2E Test"

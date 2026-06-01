@@ -288,6 +288,7 @@ export function ProfessorCourseDetailScreen() {
               )
             )}
             <Button
+              testID={tab === "evaluaciones" ? "add-evaluation-button" : "add-category-button"}
               onPress={tab === "evaluaciones" ? () => setIsCreateEvalOpen(true) : () => setIsCreateCatOpen(true)}
               className="rounded-full"
               style={{ paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10, marginLeft: 10 }}

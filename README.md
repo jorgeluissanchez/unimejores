@@ -52,8 +52,9 @@ Flujo principal:
 | HTTP / API | Fetch nativo → Roble API (Uninorte) |
 | Persistencia local | AsyncStorage |
 | Testing (unitario / componente / integración) | Jest 29 + @testing-library/react-native |
-| Mocking HTTP en desarrollo | MSW 2 (Mock Service Worker) |
-| Testing E2E | Playwright 1.60 |
+| Mocking HTTP en tests y desarrollo | MSW 2 (Mock Service Worker — `msw/node` en Jest, `msw/native` en app) |
+| Testing E2E web | Playwright 1.60 |
+| Testing E2E emulador | Maestro CLI |
 | Documentación de componentes | Storybook 8 (react-vite) |
 | Package manager | pnpm |
 | TypeScript | 5.9 strict mode |
@@ -95,9 +96,22 @@ unimejores/
 │
 ├── assets/                           # Fuentes, imágenes, iconos
 │
-├── e2e/                              # Tests End-to-End (Playwright)
+├── e2e/                              # Tests E2E web (Playwright)
 │   ├── login.spec.ts                 #   Flujo de autenticación
 │   └── evaluation.spec.ts            #   Flujo de evaluación de pares
+│
+├── .maestro/                         # Tests E2E emulador (Maestro)
+│   ├── README.md                     #   Instrucciones de ejecución
+│   ├── helpers/
+│   │   ├── login-student.yaml        #   Helper reutilizable: login estudiante
+│   │   └── login-professor.yaml      #   Helper reutilizable: login profesor
+│   ├── 01-auth-student.yaml          #   Login, logout, validaciones
+│   ├── 02-student-course.yaml        #   Ver cursos y categorías
+│   ├── 03-student-evaluation.yaml    #   Navegar al formulario de evaluación
+│   ├── 04-auth-professor.yaml        #   Login/logout como profesor
+│   ├── 05-professor-course-crud.yaml #   Crear, editar y eliminar curso
+│   ├── 06-professor-category-group.yaml #  Agregar categoría y grupo
+│   └── 07-professor-evaluation-crud.yaml # Crear evaluación
 │
 ├── src/
 │   │
@@ -187,24 +201,30 @@ unimejores/
 │   │   ├── index.web.ts              #   Service Worker (browser)
 │   │   └── index.native.ts           #   Interceptor nativo
 │   │
-│   └── __tests__/                    # Suite de tests
+│   └── __tests__/                    # Suite de tests Jest (181 tests)
 │       ├── setup/
 │       │   ├── env.ts                #   Variables de entorno para Jest
-│       │   └── msw.ts                #   (reservado)
-│       ├── unit/                     #   Tests unitarios (funciones puras)
+│       │   └── msw-server.ts         #   Servidor MSW/node global (beforeAll/afterEach/afterAll)
+│       ├── unit/                     #   Tests unitarios — funciones puras
 │       │   ├── utils.test.ts
 │       │   ├── container.test.ts
 │       │   └── local-preferences-async-storage.test.ts
 │       ├── components/               #   Tests de componentes React Native
 │       │   ├── button.test.tsx
-│       │   ├── login-form.test.tsx
 │       │   ├── logout-button.test.tsx
-│       │   └── course-card.test.tsx
-│       └── integration/              #   Tests de integración (contextos + fetch mock)
-│           ├── auth-datasource.test.ts
-│           ├── auth-context.test.tsx
-│           ├── course-context.test.tsx
-│           └── evaluation-context.test.tsx
+│       │   ├── course-card.test.tsx
+│       │   ├── login-screen.test.tsx
+│       │   ├── home-screen.test.tsx
+│       │   └── evaluation-screen.test.tsx
+│       └── integration/              #   Tests de integración — DataSource + Context vía MSW
+│           ├── auth-datasource.test.ts     #   AuthRemoteDataSourceImpl con MSW/node
+│           ├── auth-context.test.tsx       #   AuthProvider + useAuth
+│           ├── course-datasource.test.ts   #   CourseRemoteDataSourceImpl con MSW/node
+│           ├── course-context.test.tsx     #   CourseProvider + useCourses (student + professor)
+│           ├── evaluation-datasource.test.ts  # EvaluationRemoteDataSourceImpl con MSW/node
+│           ├── evaluation-context.test.tsx    # EvaluationProvider + useEvaluation
+│           ├── student-flow.test.ts        #   Flujo completo estudiante (login → eval)
+│           └── professor-flow.test.ts      #   Flujo completo profesor (login → CRUD)
 ```
 
 ---
@@ -270,20 +290,33 @@ pnpm android
 pnpm web
 ```
 
-> En desarrollo, la app carga automáticamente los mocks de MSW para no depender de la API real. Credenciales de prueba:
+> Con `EXPO_PUBLIC_USE_MOCK=true`, la app usa MSW en lugar de la API real. Credenciales de prueba:
 >
-> | Campo | Valor |
-> |---|---|
-> | Correo | `estudiante@uninorte.edu.co` |
-> | Contraseña | `password123` |
+> | Rol | Correo | Contraseña |
+> |---|---|---|
+> | Estudiante | `estudiante@uninorte.edu.co` | `password123` |
+> | Profesor | `profesor@uninorte.edu.co` | `password123` |
 
 ---
 
 ## Testing
 
-El proyecto tiene cuatro capas de pruebas:
+El proyecto tiene **cuatro capas de pruebas Jest** (sin emulador) más **dos capas E2E** (web y emulador).
 
-### Unitarias — funciones puras
+### Resumen rápido
+
+| Capa | Comando | Requiere |
+|---|---|---|
+| Unitarios | `pnpm test:unit` | Nada |
+| Integración | `pnpm test:integration` | Nada (MSW intercepta) |
+| Componentes | `pnpm test:components` | Nada |
+| Todos (Jest) | `pnpm test` | Nada |
+| E2E web (Playwright) | `pnpm test:e2e` | App corriendo en web |
+| E2E emulador (Maestro) | `maestro test .maestro/` | Emulador + app con mocks |
+
+---
+
+### 1. Unitarios — funciones puras
 
 ```bash
 pnpm test:unit
@@ -291,40 +324,123 @@ pnpm test:unit
 
 Cubre: `cn()`, `isSessionExpiredError()`, `parseCsvLine()`, `Container` (DI), `LocalPreferencesAsyncStorage`.
 
-### Componentes — React Native Testing Library
+---
 
-```bash
-pnpm test:components
-```
-
-Cubre: `Button`, `LoginForm`, `LogoutButton`, `CourseCard` — render, interacciones, validaciones.
-
-### Integración — contextos + fetch mock
+### 2. Integración — DataSources + Contexts vía MSW
 
 ```bash
 pnpm test:integration
 ```
 
-Cubre: `AuthContext`, `CourseContext`, `EvaluationContext`, `AuthRemoteDataSourceImpl` — todos los flujos (login, logout, sesión expirada, carga de cursos, submit de evaluación…).
+MSW (`msw/node`) intercepta todas las llamadas HTTP reales. No se necesita servidor externo.
 
-### Todos los tests
+Cubre:
+- `AuthRemoteDataSourceImpl` — login, logout, refresh, verify token
+- `CourseRemoteDataSourceImpl` — cursos inscritos, categorías, grupos, CRUD
+- `EvaluationRemoteDataSourceImpl` — evaluaciones, criterios, submit, CRUD
+- `AuthContext` / `CourseContext` / `EvaluationContext` — flujos completos estudiante y profesor
+- `student-flow` — flujo encadenado: login → cursos → grupo → evaluación → submit
+- `professor-flow` — flujo encadenado: login → crear curso → categoría → grupo → evaluación
+
+---
+
+### 3. Componentes — React Native Testing Library
 
 ```bash
-pnpm test              # todos sin cobertura
+pnpm test:components
+```
+
+Cubre: `LoginScreen` (validaciones, error banner, submit), `HomeScreen` (vista estudiante y profesor), `EvaluationScreen` (criterios, peer, botón enviar), `CourseCard` (badge pendientes, texto de estado), `Button`, `LogoutButton`.
+
+---
+
+### 4. Todos los tests Jest
+
+```bash
+pnpm test              # 181 tests, sin cobertura
 pnpm test:coverage     # con reporte de cobertura
 pnpm test:watch        # modo interactivo
 ```
 
-### End-to-End — Playwright
+---
 
-Requiere que la app esté corriendo en web (`pnpm web`):
+### 5. E2E web — Playwright
+
+Requiere que la app esté corriendo en web (`pnpm web`). MSW actúa como Service Worker en el navegador.
 
 ```bash
-pnpm test:e2e          # headless
+pnpm test:e2e          # headless (Chrome)
 pnpm test:e2e:ui       # con interfaz visual de Playwright
 ```
 
-Cubre: flujo completo de login, validaciones de formulario, sesión persistente, logout, navegación a cursos y envío de evaluación de pares.
+Cubre: login con credenciales de estudiante, validaciones de formulario, sesión persistente, logout, navegación a cursos y envío de evaluación de pares.
+
+---
+
+### 6. E2E emulador — Maestro
+
+Requiere Maestro CLI instalado y el emulador corriendo. La app debe iniciarse con `EXPO_PUBLIC_USE_MOCK=true` para activar MSW nativo.
+
+#### Instalación de Maestro
+
+```bash
+curl -Ls "https://get.maestro.mobile.dev" | bash
+```
+
+#### Iniciar la app con mocks
+
+```bash
+# Android
+EXPO_PUBLIC_USE_MOCK=true pnpm android
+
+# iOS
+EXPO_PUBLIC_USE_MOCK=true pnpm ios
+```
+
+#### Correr los flows
+
+```bash
+# Un flow específico
+maestro test .maestro/01-auth-student.yaml
+
+# Todos los flows de estudiante
+maestro test .maestro/01-auth-student.yaml \
+             .maestro/02-student-course.yaml \
+             .maestro/03-student-evaluation.yaml
+
+# Todos los flows de profesor
+maestro test .maestro/04-auth-professor.yaml \
+             .maestro/05-professor-course-crud.yaml \
+             .maestro/06-professor-category-group.yaml \
+             .maestro/07-professor-evaluation-crud.yaml
+
+# Todos los flows
+maestro test .maestro/
+```
+
+#### Ver resultados y grabar
+
+Maestro graba automáticamente cuando un test falla. Para ver el emulador en tiempo real y correr flows paso a paso:
+
+```bash
+maestro studio
+```
+
+Abre una interfaz en el navegador con preview del emulador, inspector de elementos y grabador de flows.
+
+Los screenshots y videos de cada ejecución quedan en `~/.maestro/tests/`.
+
+#### Flows disponibles
+
+| Flow | Rol | Descripción |
+|---|---|---|
+| `01-auth-student.yaml` | Estudiante | Login exitoso, logout, errores de validación y credenciales |
+| `02-student-course.yaml` | Estudiante | Ver cursos inscritos y categorías |
+| `03-student-evaluation.yaml` | Estudiante | Navegar hasta formulario de evaluación de pares |
+| `04-auth-professor.yaml` | Profesor | Login y logout como profesor |
+| `05-professor-course-crud.yaml` | Profesor | Crear, editar y eliminar un curso |
+| `06-professor-category-group.yaml` | Profesor | Agregar categoría y grupo a un curso |
+| `07-professor-evaluation-crud.yaml` | Profesor | Crear una evaluación |
 
 ---
 
@@ -352,20 +468,22 @@ En modo desarrollo/test, la app usa **MSW** (Mock Service Worker) que intercepta
 
 | Entidad | Cantidad |
 |---|---|
-| Usuarios | 9 (1 logueado + 8 compañeros) |
-| Cursos | 2 (Ingeniería de Software, Redes) |
+| Usuarios | 10 (1 estudiante logueado + 1 profesor + 8 compañeros) |
+| Cursos | 2 (Ingeniería de Software, Redes de Computadores) |
 | Categorías | 3 (Proyecto Final, Parcial 1, Taller Redes) |
 | Grupos | 3 (Alpha, Beta, Gamma) |
 | Criterios | 4 (Participación, Comunicación, Calidad, Puntualidad) |
-| Evaluaciones | 2 activas |
+| Evaluaciones | 2 activas (cat. Proyecto Final y Taller Redes; Parcial 1 sin evaluación) |
 
 ### Endpoints mockeados
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/auth/:id/login` | Valida `estudiante@uninorte.edu.co` / `password123` |
+| `POST` | `/auth/:id/login` | Estudiante o profesor — tokens separados por rol |
 | `POST` | `/auth/:id/signup` | Registro de usuario |
 | `POST` | `/auth/:id/logout` | Cierre de sesión |
+| `POST` | `/auth/:id/refresh-token` | Renueva el access token según el refresh token del rol |
+| `GET`  | `/auth/:id/verify-token` | Valida que el token siga activo |
 | `GET` | `/database/:id/read` | Lectura de cualquier tabla con filtros |
 | `POST` | `/database/:id/insert` | Inserción de registros |
 | `PUT` | `/database/:id/update` | Actualización por ID |

@@ -41,6 +41,7 @@ export function AddCategoryForm({ courseId, onCreated, onCancel }: Props) {
       <View className="gap-1.5">
         <Label>Nombre</Label>
         <Input
+          testID="category-name-input"
           value={name}
           onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }}
           placeholder="Ej: Unidad 1"
@@ -52,7 +53,7 @@ export function AddCategoryForm({ courseId, onCreated, onCancel }: Props) {
         <Label>Descripción</Label>
         <Textarea value={description} onChangeText={setDescription} placeholder="Descripción (opcional)" />
       </View>
-      <Button onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+      <Button testID="save-category-button" onPress={handleSubmit} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
         <Text>GUARDAR</Text>
       </Button>
     </View>

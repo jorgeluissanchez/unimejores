@@ -1,0 +1,34 @@
+appId: com.anonymous.unimejores
+---
+# ── Happy path: login ─────────────────────────────────────────────────────────
+- runFlow: helpers/login-student.yaml
+- assertVisible:
+    text: "¿Con que materia quieres empezar?"
+
+# ── Logout ────────────────────────────────────────────────────────────────────
+- tapOn:
+    text: "Ajustes"
+- tapOn:
+    id: "logout-button"
+- assertVisible:
+    id: "login-button"
+
+# ── Validation: empty form ────────────────────────────────────────────────────
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "login-button"
+- assertVisible:
+    text: "Ingresa tu correo"
+
+# ── Validation: wrong credentials ─────────────────────────────────────────────
+- tapOn:
+    id: "email-input"
+- inputText: "wrong@test.com"
+- tapOn:
+    id: "password-input"
+- inputText: "wrongpassword"
+- tapOn:
+    id: "login-button"
+- assertVisible:
+    text: "Credenciales inválidas"

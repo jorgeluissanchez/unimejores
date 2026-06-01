@@ -126,6 +126,7 @@ export default function EvaluationScreen() {
             </Text>
           )}
           <Button
+            testID="submit-evaluation-button"
             onPress={handleSubmit}
             disabled={!allAnswered || submitting}
             className="rounded-full py-[18px] items-center mb-6"

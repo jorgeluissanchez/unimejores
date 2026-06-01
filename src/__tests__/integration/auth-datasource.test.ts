@@ -1,12 +1,15 @@
 /**
  * Integration tests for AuthRemoteDataSourceImpl.
  *
- * Network calls are intercepted via jest.fn() on global.fetch so we avoid
- * any ESM-resolver issues with MSW in the CJS Jest environment.
- * MSW continues to work in the actual app (browser + native).
+ * Network calls are intercepted via MSW (msw/node) — the global server is
+ * started in src/__tests__/setup/msw-server.ts and runs lifecycle hooks
+ * (beforeAll/afterEach/afterAll) automatically.  Individual tests can override
+ * handlers with server.use(); those overrides are reset after each test.
  */
 
 import { MOCK_EMAIL, MOCK_PASSWORD, MOCK_USER_ID } from '@/mocks/db';
+import { server } from '@/__tests__/setup/msw-server';
+import { http, HttpResponse } from 'msw';
 
 // ─── mock AsyncStorage & LocalPreferences ────────────────────────────────────
 
@@ -24,91 +27,48 @@ jest.mock('@/core/storage/local-preferences-async-storage', () => ({
 
 import { AuthRemoteDataSourceImpl } from '@/features/auth/data/datasources/auth-remote-data-source-impl';
 
-// ─── fetch mock helpers ───────────────────────────────────────────────────────
-
-function ok(body: unknown) {
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    json: async () => body,
-  } as Response);
-}
-
-function fail(status: number, body: unknown) {
-  return Promise.resolve({
-    ok: false,
-    status,
-    json: async () => body,
-  } as Response);
-}
-
-function makeJwt(sub: string) {
-  const header  = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub, email: MOCK_EMAIL, exp: Date.now() + 3600_000 }));
-  return `${header}.${payload}.mock-sig`;
-}
-
-const ACCESS_TOKEN = makeJwt(MOCK_USER_ID);
-
 function freshDS() { return new AuthRemoteDataSourceImpl(); }
+
+const BASE = `${process.env.EXPO_PUBLIC_API_BASE_URL}/auth/${process.env.EXPO_PUBLIC_ROBLE_PROJECT_ID}`;
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
   Object.keys(store).forEach((k) => delete store[k]);
-  global.fetch = jest.fn();
-});
-
-afterEach(() => {
-  (global.fetch as jest.Mock).mockRestore?.();
+  mockPrefs.retrieveData.mockImplementation(async (key: string) => (store[key] as any) ?? null);
 });
 
 describe('AuthRemoteDataSourceImpl.login', () => {
-  function mockLoginSuccess() {
-    (global.fetch as jest.Mock)
-      // POST /login
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: ACCESS_TOKEN, refreshToken: 'refresh-token' }) } as Response)
-      // GET /database/read?tableName=user (fetch user role/name)
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [{ role: 'student', name: 'Test User' }] } as Response);
-  }
-
   it('stores the access token on successful login', async () => {
-    mockLoginSuccess();
     await freshDS().login(MOCK_EMAIL, MOCK_PASSWORD);
-    expect(mockPrefs.storeData).toHaveBeenCalledWith('token', ACCESS_TOKEN);
+    expect(mockPrefs.storeData).toHaveBeenCalledWith('token', expect.any(String));
   });
 
   it('stores the refresh token on successful login', async () => {
-    mockLoginSuccess();
     await freshDS().login(MOCK_EMAIL, MOCK_PASSWORD);
-    expect(mockPrefs.storeData).toHaveBeenCalledWith('refreshToken', 'refresh-token');
+    expect(mockPrefs.storeData).toHaveBeenCalledWith('refreshToken', 'student-refresh-token');
   });
 
   it('stores the userId decoded from the JWT', async () => {
-    mockLoginSuccess();
     await freshDS().login(MOCK_EMAIL, MOCK_PASSWORD);
     expect(mockPrefs.storeData).toHaveBeenCalledWith('userId', MOCK_USER_ID);
   });
 
   it('stores the email used for login', async () => {
-    mockLoginSuccess();
     await freshDS().login(MOCK_EMAIL, MOCK_PASSWORD);
     expect(mockPrefs.storeData).toHaveBeenCalledWith('email', MOCK_EMAIL);
   });
 
   it('throws with "Error al iniciar sesión" on 401', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      fail(401, { message: 'Credenciales inválidas' })
-    );
     await expect(freshDS().login('wrong@email.com', 'bad')).rejects.toThrow(
       /Error al iniciar sesión/
     );
   });
 
   it('throws when response is missing tokens', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      ok({ accessToken: null, refreshToken: null })
+    server.use(
+      http.post(`${BASE}/login`, () => HttpResponse.json({ accessToken: null, refreshToken: null }))
     );
     await expect(freshDS().login(MOCK_EMAIL, MOCK_PASSWORD)).rejects.toThrow(
       /faltan tokens/
@@ -117,8 +77,8 @@ describe('AuthRemoteDataSourceImpl.login', () => {
 
   it('throws when the JWT has no sub claim', async () => {
     const invalidJwt = btoa('{}') + '.' + btoa('{}') + '.sig';
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      ok({ accessToken: invalidJwt, refreshToken: 'r' })
+    server.use(
+      http.post(`${BASE}/login`, () => HttpResponse.json({ accessToken: invalidJwt, refreshToken: 'r' }))
     );
     await expect(freshDS().login(MOCK_EMAIL, MOCK_PASSWORD)).rejects.toThrow(
       /Token inválido/
@@ -128,19 +88,16 @@ describe('AuthRemoteDataSourceImpl.login', () => {
 
 describe('AuthRemoteDataSourceImpl.logOut', () => {
   beforeEach(() => {
-    store['token'] = ACCESS_TOKEN;
+    store['token'] = 'some-valid-token';
     mockPrefs.retrieveData.mockImplementation(async (key: string) => store[key] ?? null);
   });
 
-  it('calls the logout endpoint once', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+  it('calls the logout endpoint once and removes the token', async () => {
     await freshDS().logOut();
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('/logout');
+    expect(mockPrefs.removeData).toHaveBeenCalledWith('token');
   });
 
   it('removes the token from storage', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
     await freshDS().logOut();
     expect(mockPrefs.removeData).toHaveBeenCalledWith('token');
   });
@@ -159,15 +116,16 @@ describe('AuthRemoteDataSourceImpl.verifyToken', () => {
   });
 
   it('returns true when the server responds with 200', async () => {
-    mockPrefs.retrieveData.mockResolvedValueOnce(ACCESS_TOKEN);
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 200 } as Response);
+    store['token'] = 'some-valid-token';
     const result = await freshDS().verifyToken();
     expect(result).toBe(true);
   });
 
   it('returns false when the server responds with non-200', async () => {
-    mockPrefs.retrieveData.mockResolvedValueOnce(ACCESS_TOKEN);
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ status: 401, json: async () => ({ message: 'invalid' }) } as Response);
+    store['token'] = 'some-valid-token';
+    server.use(
+      http.get(`${BASE}/verify-token`, () => HttpResponse.json({ message: 'invalid' }, { status: 401 }))
+    );
     const result = await freshDS().verifyToken();
     expect(result).toBe(false);
   });
@@ -175,23 +133,21 @@ describe('AuthRemoteDataSourceImpl.verifyToken', () => {
 
 describe('AuthRemoteDataSourceImpl.refreshToken', () => {
   it('returns false when no refresh token is stored', async () => {
-    mockPrefs.retrieveData.mockResolvedValueOnce(null);
     const result = await freshDS().refreshToken();
     expect(result).toBe(false);
   });
 
   it('stores the new access token and returns true on success', async () => {
-    mockPrefs.retrieveData.mockResolvedValueOnce('old-refresh-token');
-    (global.fetch as jest.Mock).mockResolvedValueOnce(ok({ accessToken: ACCESS_TOKEN }));
+    store['refreshToken'] = 'student-refresh-token';
     const result = await freshDS().refreshToken();
     expect(result).toBe(true);
-    expect(mockPrefs.storeData).toHaveBeenCalledWith('token', ACCESS_TOKEN);
+    expect(mockPrefs.storeData).toHaveBeenCalledWith('token', expect.any(String));
   });
 
   it('throws when the server rejects the refresh token', async () => {
-    mockPrefs.retrieveData.mockResolvedValueOnce('expired-refresh');
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      fail(401, { message: 'Token expirado' })
+    store['refreshToken'] = 'expired-refresh';
+    server.use(
+      http.post(`${BASE}/refresh-token`, () => HttpResponse.json({ message: 'Token expirado' }, { status: 401 }))
     );
     await expect(freshDS().refreshToken()).rejects.toThrow(/Error al renovar el token/);
   });

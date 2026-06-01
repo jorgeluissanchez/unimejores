@@ -43,6 +43,7 @@ export function CourseCard({
 
   return (
     <View
+      testID="course-card"
       className="min-h-[188px] flex-1 justify-between overflow-hidden rounded-[20px] px-4 py-5"
       style={{ backgroundColor: background }}
     >

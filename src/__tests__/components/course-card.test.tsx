@@ -90,4 +90,19 @@ describe('CourseCard', () => {
     fireEvent.press(getByText('COMIENZA'));
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it('shows "X Grupos por Calificar" text when pendingCount > 0', () => {
+    const { getByText } = render(<CourseCard {...defaultProps} pendingCount={3} />);
+    expect(getByText('3 Grupos por Calificar')).toBeTruthy();
+  });
+
+  it('shows "Todos han Sido Calificados" when pendingCount is 0', () => {
+    const { getByText } = render(<CourseCard {...defaultProps} pendingCount={0} />);
+    expect(getByText('Todos han Sido Calificados')).toBeTruthy();
+  });
+
+  it('shows custom statusText when provided', () => {
+    const { getByText } = render(<CourseCard {...defaultProps} statusText="Custom Status" />);
+    expect(getByText('Custom Status')).toBeTruthy();
+  });
 });

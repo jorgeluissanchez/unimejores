@@ -18,7 +18,7 @@ type Props = {
 
 export function CriteriumScoreCard({ criterium, selected, onSelect }: Props) {
   return (
-    <View className="mb-2">
+    <View testID="criterium-score-card" className="mb-2">
       <Text className="text-[22px] font-bold text-[#1E1E2E] leading-[30px] mb-2">
         {criterium.name}
       </Text>

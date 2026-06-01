@@ -100,7 +100,7 @@ export function UpdateCourseForm({ course, onCancel, onDeleted }: Props) {
             </View>
           </View>
         ) : (
-          <Button variant="destructive" onPress={() => setConfirmDelete(true)} disabled={isSaving} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
+          <Button testID="delete-course-button" variant="destructive" onPress={() => setConfirmDelete(true)} disabled={isSaving} className="rounded-full w-full" style={{ paddingVertical: 18 }}>
             <Text>ELIMINAR CURSO</Text>
           </Button>
         )

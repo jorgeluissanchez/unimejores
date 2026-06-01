@@ -1,0 +1,37 @@
+appId: com.anonymous.unimejores
+---
+- runFlow: helpers/login-professor.yaml
+
+# ── Create a new course ───────────────────────────────────────────────────────
+- tapOn:
+    id: "add-course-button"
+- tapOn:
+    id: "course-name-input"
+- inputText: "Curso E2E Test"
+- tapOn:
+    id: "course-nrc-input"
+- inputText: "99999"
+- tapOn:
+    id: "save-course-button"
+- assertVisible:
+    text: "Curso E2E Test"
+
+# ── Edit the course ───────────────────────────────────────────────────────────
+- tapOn:
+    text: "Curso E2E Test"
+- tapOn:
+    id: "edit-course-button"
+    optional: true
+- clearText:
+    id: "course-name-input"
+- inputText: "Curso Actualizado"
+- tapOn:
+    id: "save-course-button"
+- assertVisible:
+    text: "Curso Actualizado"
+
+# ── Delete the course ─────────────────────────────────────────────────────────
+- tapOn:
+    id: "delete-course-button"
+- assertNotVisible:
+    text: "Curso Actualizado"

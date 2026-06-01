@@ -1,0 +1,14 @@
+appId: com.anonymous.unimejores
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "email-input"
+- inputText: "estudiante@uninorte.edu.co"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+- assertNotVisible:
+    text: "Bienvenido de nuevo"

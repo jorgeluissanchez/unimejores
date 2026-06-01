@@ -1,0 +1,33 @@
+appId: com.anonymous.unimejores
+---
+- runFlow: helpers/login-student.yaml
+
+# ── Navigate to course ────────────────────────────────────────────────────────
+- tapOn:
+    text: "Ingeniería de Software"
+
+# ── Open Proyecto Final category ──────────────────────────────────────────────
+- tapOn:
+    text: "Proyecto Final"
+
+# ── Group visible ─────────────────────────────────────────────────────────────
+- assertVisible:
+    text: "Grupo Alpha"
+
+# ── Open first peer for evaluation ────────────────────────────────────────────
+- tapOn:
+    id: "peer-card"
+
+# ── Evaluation criteria visible ───────────────────────────────────────────────
+- assertVisible:
+    text: "Participación activa"
+- assertVisible:
+    text: "Comunicación efectiva"
+- assertVisible:
+    text: "Calidad del trabajo"
+- assertVisible:
+    text: "Puntualidad"
+
+# ── Submit button visible ─────────────────────────────────────────────────────
+- assertVisible:
+    id: "submit-evaluation-button"

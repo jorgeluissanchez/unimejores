@@ -1,0 +1,31 @@
+appId: com.anonymous.unimejores
+---
+- runFlow: helpers/login-professor.yaml
+
+# ── Open existing course ──────────────────────────────────────────────────────
+- tapOn:
+    text: "Ingeniería de Software"
+
+# ── Add a category ────────────────────────────────────────────────────────────
+- tapOn:
+    id: "add-category-button"
+- tapOn:
+    id: "category-name-input"
+- inputText: "Categoría E2E"
+- tapOn:
+    id: "save-category-button"
+- assertVisible:
+    text: "Categoría E2E"
+
+# ── Open category and add a group ─────────────────────────────────────────────
+- tapOn:
+    text: "Categoría E2E"
+- tapOn:
+    id: "add-group-button"
+- tapOn:
+    id: "group-name-input"
+- inputText: "Grupo E2E"
+- tapOn:
+    id: "save-group-button"
+- assertVisible:
+    text: "Grupo E2E"
