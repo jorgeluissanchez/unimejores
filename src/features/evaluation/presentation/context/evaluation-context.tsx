@@ -38,6 +38,7 @@ type EvaluationContextType = {
 
   // Professor: evaluation management
   getEvaluationByCategory: (categoryId: string) => Promise<Evaluation | null>;
+  getEvaluationsByCategory: (categoryId: string) => Promise<Evaluation[]>;
   createEvaluation: (evaluation: NewEvaluation) => Promise<Evaluation>;
   updateEvaluation: (evaluation: Evaluation) => Promise<void>;
   deleteEvaluation: (id: string) => Promise<void>;
@@ -160,6 +161,7 @@ export function EvaluationProvider({ children }: { children: ReactNode }) {
     deleteCriterium: (id) => wrapCriteria(() => evalRepo.deleteCriterium(id))(),
 
     getEvaluationByCategory: (categoryId) => evalRepo.getEvaluationByCategory(categoryId),
+    getEvaluationsByCategory: (categoryId) => evalRepo.getEvaluationsByCategory(categoryId),
     createEvaluation: (ev) => evalRepo.createEvaluation(ev),
     updateEvaluation: (ev) => evalRepo.updateEvaluation(ev),
     deleteEvaluation: (id) => evalRepo.deleteEvaluation(id),

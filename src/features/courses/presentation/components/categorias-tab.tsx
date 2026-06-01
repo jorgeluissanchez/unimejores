@@ -5,12 +5,13 @@ import { SquarePen } from "lucide-react-native";
 import React from "react";
 import { TouchableOpacity, View } from "react-native";
 
+
 const PRIMARY = "#818CF8";
 const PRIMARY_LIGHT = "rgba(129,140,248,0.15)";
 
 export type CategoryWithData = {
   category: Category;
-  evaluation: Evaluation | null;
+  evaluations: Evaluation[];
   groups: Group[];
 };
 

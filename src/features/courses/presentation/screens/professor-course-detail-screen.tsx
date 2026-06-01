@@ -46,7 +46,7 @@ export function ProfessorCourseDetailScreen() {
     importGroupsCsv,
   } = useCourses();
 
-  const { myCriteria, getEvaluationByCategory, getResultsByGroup, updateEvaluation, deleteEvaluation } = useEvaluation();
+  const { myCriteria, getEvaluationsByCategory, getResultsByGroup, updateEvaluation, deleteEvaluation } = useEvaluation();
 
   const course = useMemo(() => courses.find((c) => c._id === courseId), [courses, courseId]);
 
@@ -58,13 +58,17 @@ export function ProfessorCourseDetailScreen() {
 
   // Local state mutation helpers — avoid full reload after single-item changes
   const mutateCategoryAdd = useCallback((cat: Category) =>
-    setCategoryData((prev) => [...prev, { category: cat, evaluation: null, groups: [] }]), []);
+    setCategoryData((prev) => [...prev, { category: cat, evaluations: [], groups: [] }]), []);
   const mutateCategoryUpdate = useCallback((cat: Category) =>
     setCategoryData((prev) => prev.map((cd) => cd.category._id === cat._id ? { ...cd, category: cat } : cd)), []);
   const mutateCategoryDelete = useCallback((catId: string) =>
     setCategoryData((prev) => prev.filter((cd) => cd.category._id !== catId)), []);
-  const mutateEvaluationSet = useCallback((catId: string, ev: import("@/features/evaluation/domain/entities/evaluation").Evaluation | null) =>
-    setCategoryData((prev) => prev.map((cd) => cd.category._id === catId ? { ...cd, evaluation: ev } : cd)), []);
+  const mutateEvaluationAdd = useCallback((ev: import("@/features/evaluation/domain/entities/evaluation").Evaluation) =>
+    setCategoryData((prev) => prev.map((cd) => cd.category._id === ev.category_id ? { ...cd, evaluations: [...cd.evaluations, ev] } : cd)), []);
+  const mutateEvaluationUpdate = useCallback((ev: import("@/features/evaluation/domain/entities/evaluation").Evaluation) =>
+    setCategoryData((prev) => prev.map((cd) => cd.category._id === ev.category_id ? { ...cd, evaluations: cd.evaluations.map((e) => e._id === ev._id ? ev : e) } : cd)), []);
+  const mutateEvaluationDelete = useCallback((ev: import("@/features/evaluation/domain/entities/evaluation").Evaluation) =>
+    setCategoryData((prev) => prev.map((cd) => cd.category._id === ev.category_id ? { ...cd, evaluations: cd.evaluations.filter((e) => e._id !== ev._id) } : cd)), []);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ completed: number; total: number } | null>(null);
   const [isCreateEvalOpen, setIsCreateEvalOpen] = useState(false);
@@ -84,11 +88,11 @@ export function ProfessorCourseDetailScreen() {
       const cats = await getCategoriesByCourse(courseId);
       const withData = await Promise.all(
         cats.map(async (cat) => {
-          const [ev, groups] = await Promise.all([
-            getEvaluationByCategory(cat._id),
+          const [evaluations, groups] = await Promise.all([
+            getEvaluationsByCategory(cat._id),
             getGroupsByCategory(cat._id),
           ]);
-          return { category: cat, evaluation: ev, groups };
+          return { category: cat, evaluations, groups };
         }),
       );
       setCategoryData(withData);
@@ -114,10 +118,9 @@ export function ProfessorCourseDetailScreen() {
   useEffect(() => { load(); }, [load]);
 
   const evalList: EvalListItem[] = useMemo(
-    () =>
-      categoryData
-        .filter((cd) => cd.evaluation !== null)
-        .map((cd) => ({ evaluation: cd.evaluation!, categoryName: cd.category.name })),
+    () => categoryData.flatMap((cd) =>
+      cd.evaluations.map((ev) => ({ evaluation: ev, categoryName: cd.category.name }))
+    ),
     [categoryData],
   );
 
@@ -157,7 +160,7 @@ export function ProfessorCourseDetailScreen() {
       setIsSavingEval(true);
       const updated = { ...editEval.evaluation, title: values.title.trim(), description: values.description.trim(), end_date: values.endDate.trim(), category_id: values.categoryId };
       await updateEvaluation(updated);
-      mutateEvaluationSet(updated.category_id, updated);
+      mutateEvaluationUpdate(updated);
       setEditEval(null);
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo guardar.");
@@ -171,7 +174,7 @@ export function ProfessorCourseDetailScreen() {
     try {
       setIsDeletingEval(true);
       await deleteEvaluation(editEval.evaluation._id);
-      mutateEvaluationSet(editEval.evaluation.category_id, null);
+      mutateEvaluationDelete(editEval.evaluation);
       setEditEval(null);
     } catch (e: any) {
       setConfirmDeleteEval(false);
@@ -343,7 +346,7 @@ export function ProfessorCourseDetailScreen() {
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
               <CreateEvaluationForm
                 courseId={courseId!}
-                onCreated={(ev) => { mutateEvaluationSet(ev.category_id, ev); setIsCreateEvalOpen(false); }}
+                onCreated={(ev) => { mutateEvaluationAdd(ev); setIsCreateEvalOpen(false); }}
                 onCancel={() => setIsCreateEvalOpen(false)}
               />
             </ScrollView>

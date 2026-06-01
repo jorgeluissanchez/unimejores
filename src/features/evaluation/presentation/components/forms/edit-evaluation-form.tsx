@@ -44,7 +44,7 @@ export const EditEvaluationForm = forwardRef<EditEvaluationFormHandle, Props>(
     );
 
     return (
-      <View style={{ gap: 16 }}>
+      <View style={{ gap: 16, zIndex: 10 }}>
         <View className="gap-1.5">
           <Label>Título</Label>
           <Input value={title} onChangeText={setTitle} placeholder="Título de la evaluación" />
@@ -61,7 +61,6 @@ export const EditEvaluationForm = forwardRef<EditEvaluationFormHandle, Props>(
           <Label>Categoría</Label>
           <Combobox
             value={categoryId}
-            displayValue={categories.find((c) => c._id === categoryId)?.name ?? ""}
             onValueChange={(v) => { if (v) setCategoryId(v); }}
           >
             <ComboboxInput placeholder="Seleccionar categoría..." filterFn={setQuery} />

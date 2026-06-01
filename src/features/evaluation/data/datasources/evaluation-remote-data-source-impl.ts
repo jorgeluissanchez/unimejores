@@ -80,7 +80,7 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
       throw new Error(`Error insertando en ${tableName}: ${body.message ?? response.status}`);
     }
     const data = await response.json().catch(() => null);
-    return data?.[0] ?? null;
+    return data?.inserted?.[0] ?? null;
   }
 
   private async deleteRecord(tableName: string, id: string): Promise<void> {
@@ -102,7 +102,7 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
     const categoryId = groups[0]?.category_id;
     if (!categoryId) return null;
     const rows = await this.readTable<Evaluation>("evaluation", { category_id: categoryId });
-    return rows[0] ?? null;
+    return rows.at(-1) ?? null;
   }
 
   async getCriteriaByEvaluation(evaluationId: string): Promise<Criterium[]> {
@@ -165,7 +165,11 @@ export class EvaluationRemoteDataSourceImpl implements EvaluationDataSource {
 
   async getEvaluationByCategory(categoryId: string): Promise<Evaluation | null> {
     const rows = await this.readTable<Evaluation>("evaluation", { category_id: categoryId });
-    return rows[0] ?? null;
+    return rows.at(-1) ?? null;
+  }
+
+  async getEvaluationsByCategory(categoryId: string): Promise<Evaluation[]> {
+    return this.readTable<Evaluation>("evaluation", { category_id: categoryId });
   }
 
   async createEvaluation(evaluation: NewEvaluation): Promise<Evaluation> {

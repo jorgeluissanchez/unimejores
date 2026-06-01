@@ -129,13 +129,17 @@ function StudentHome() {
 
 // ─── Professor home ────────────────────────────────────────────────────────────
 
+type CriteriumAvgItem = { criteriumId: string; name: string; avg: number };
 type EvalProgressItem = {
   evaluationId: string;
+  categoryId: string;
   title: string;
   courseName: string;
   endDate: string;
   completed: number;
   total: number;
+  criteriaAvgs: CriteriumAvgItem[];
+  overallAvg: number;
 };
 
 function ProfessorHome() {
@@ -147,7 +151,7 @@ function ProfessorHome() {
     getMembersByGroup,
   } = useCourses();
 
-  const { getEvaluationByCategory, getResultsByGroup } = useEvaluation();
+  const { getEvaluationsByCategory, getResultsByGroup, myCriteria } = useEvaluation();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editCourse, setEditCourse] = useState<Course | null>(null);
@@ -164,39 +168,60 @@ function ProfessorHome() {
         courses.map(async (course) => ({ course, cats: await getCategoriesByCourse(course._id) }))
       );
 
-      // fetch eval + groups for every category in parallel (flattened)
-      const items = (await Promise.all(
+      // fetch all evals + groups for every category in parallel (flattened)
+      const catResults = await Promise.all(
         courseCats.flatMap(({ course, cats }) =>
-          cats.map(async (cat): Promise<EvalProgressItem | null> => {
-            const [ev, groups] = await Promise.all([
-              getEvaluationByCategory(cat._id),
+          cats.map(async (cat) => {
+            const [evs, groups] = await Promise.all([
+              getEvaluationsByCategory(cat._id),
               getGroupsByCategory(cat._id),
             ]);
-            if (!ev || groups.length === 0) return null;
-
-            const groupData = await Promise.all(
-              groups.map(async (g) => {
-                const [members, results] = await Promise.all([
-                  getMembersByGroup(g._id),
-                  getResultsByGroup(g._id),
-                ]);
-                return { members, results };
-              }),
-            );
-
-            const total = groupData.reduce((s, { members }) => s + members.length, 0);
-            const completedSet = new Set(groupData.flatMap(({ results }) => results.map((r) => r.evaluator_id)));
-            return {
-              evaluationId: ev._id,
-              title: ev.title,
-              courseName: course.name,
-              endDate: ev.end_date,
-              completed: Math.min(completedSet.size, total),
-              total,
-            };
+            return { course, evs, groups };
           }),
         ),
-      )).filter((x): x is EvalProgressItem => x !== null);
+      );
+
+      const groupDataByCategory = await Promise.all(
+        catResults.map(async ({ groups }) => {
+          if (groups.length === 0) return { total: 0, completedSet: new Set<string>(), allResults: [] as import("@/features/evaluation/domain/entities/evaluation").ResultEvaluation[] };
+          const groupData = await Promise.all(
+            groups.map(async (g) => {
+              const [members, results] = await Promise.all([getMembersByGroup(g._id), getResultsByGroup(g._id)]);
+              return { members, results };
+            }),
+          );
+          const total = groupData.reduce((s, { members }) => s + members.length, 0);
+          const allResults = groupData.flatMap(({ results }) => results);
+          const completedSet = new Set(allResults.map((r) => r.evaluator_id));
+          return { total, completedSet, allResults };
+        }),
+      );
+
+      const items: EvalProgressItem[] = [];
+      catResults.forEach(({ course, evs }, i) => {
+        const { total, completedSet, allResults } = groupDataByCategory[i];
+        if (evs.length === 0) return;
+        for (const ev of evs) {
+          const criteriaAvgs = myCriteria
+            .map((c) => {
+              const vals = allResults.filter((r) => r.criterium_id === c._id).map((r) => Number(r.score));
+              return { criteriumId: c._id, name: c.name, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0 };
+            })
+            .filter((c) => c.avg > 0);
+          const overallAvg = criteriaAvgs.length ? criteriaAvgs.reduce((s, c) => s + c.avg, 0) / criteriaAvgs.length : 0;
+          items.push({
+            evaluationId: ev._id,
+            categoryId: ev.category_id,
+            title: ev.title,
+            courseName: course.name,
+            endDate: ev.end_date,
+            completed: Math.min(completedSet.size, total),
+            total,
+            criteriaAvgs,
+            overallAvg,
+          });
+        }
+      });
 
       setProgressItems(items);
     } catch {
@@ -204,7 +229,7 @@ function ProfessorHome() {
     } finally {
       setProgressLoading(false);
     }
-  }, [courses]);
+  }, [courses, myCriteria]);
 
   useEffect(() => { loadProgress(); }, [loadProgress]);
 
@@ -278,13 +303,29 @@ function ProfessorHome() {
               ) : (
                 progressItems.map((item) => (
                   <View key={item.evaluationId}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 16 }}>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, paddingVertical: 16 }}>
                       <CircleProgress completed={item.completed} total={item.total} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontWeight: "700", fontSize: 15, color: "#111827" }}>{item.title}</Text>
                         <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
                           {item.courseName}{item.endDate ? ` · ${formatDate(item.endDate)}` : ""}
                         </Text>
+                        {item.criteriaAvgs.length > 0 && (
+                          <View style={{ marginTop: 8, gap: 4 }}>
+                            {item.criteriaAvgs.map((c) => (
+                              <View key={c.criteriumId} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <Text style={{ fontSize: 11, color: "#6B7280", width: 90 }} numberOfLines={1}>{c.name}</Text>
+                                <View style={{ flex: 1, height: 5, backgroundColor: "#F3F4F6", borderRadius: 3, overflow: "hidden" }}>
+                                  <View style={{ width: `${Math.min((c.avg / 5) * 100, 100)}%`, height: "100%", backgroundColor: "#818CF8", borderRadius: 3 }} />
+                                </View>
+                                <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", width: 28, textAlign: "right" }}>{c.avg.toFixed(1)}</Text>
+                              </View>
+                            ))}
+                            <Text style={{ fontSize: 11, color: "#818CF8", fontWeight: "700", marginTop: 2 }}>
+                              Promedio general: {item.overallAvg.toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                     <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />

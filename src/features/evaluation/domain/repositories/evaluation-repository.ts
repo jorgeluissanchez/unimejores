@@ -23,6 +23,7 @@ export interface EvaluationRepository {
 
   // Professor: manage evaluations
   getEvaluationByCategory(categoryId: string): Promise<Evaluation | null>;
+  getEvaluationsByCategory(categoryId: string): Promise<Evaluation[]>;
   createEvaluation(evaluation: NewEvaluation): Promise<Evaluation>;
   updateEvaluation(evaluation: Evaluation): Promise<void>;
   deleteEvaluation(id: string): Promise<void>;

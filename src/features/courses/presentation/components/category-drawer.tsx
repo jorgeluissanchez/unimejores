@@ -31,7 +31,6 @@ export function CategoryDrawer({ courseId, category, open, onClose, onCategoryUp
     getGroupMembersDetail,
     addGroup,
   } = useCourses();
-
   const [categoryName, setCategoryName] = useState(category.name);
   const [originalName, setOriginalName] = useState(category.name);
   const [groups, setGroups] = useState<GroupWithMembers[]>([]);

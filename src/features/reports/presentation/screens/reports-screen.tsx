@@ -18,26 +18,26 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { G, Line, Rect, Svg, Text as SvgText } from "react-native-svg";
+import { Circle, G, Line, Rect, Svg, Text as SvgText } from "react-native-svg";
 
 const PRIMARY = "#818CF8";
 const COLORS = ["#C7D2FE", "#818CF8", "#4F46E5", "#312E81"];
 
-type CategoryWithEval = { categoryId: string; categoryName: string; groupCount: number; evaluationId: string | null };
+type EvalReportItem = { evaluationId: string; evaluationTitle: string; categoryId: string; categoryName: string; groupCount: number; completed: number; total: number };
 type CriteriumAvg = { criterium: Criterium; avg: number };
 type CourseScores = { course: Course; criteriaAvgs: CriteriumAvg[] };
 
 export function ReportsScreen() {
   const { loggedUser, expireSession } = useAuth();
   const { courses, getCategoriesByCourse, getGroupsByCategory, getMembersByGroup } = useCourses();
-  const { myCriteria, getResultsByGroup, getEvaluationByCategory, getCriteriaForEvaluation } = useEvaluation();
+  const { myCriteria, getResultsByGroup, getEvaluationsByCategory, getCriteriaForEvaluation } = useEvaluation();
   const { width } = useWindowDimensions();
 
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [categories, setCategories] = useState<CategoryWithEval[]>([]);
+  const [evalItems, setEvalItems] = useState<EvalReportItem[]>([]);
   const [courseScores, setCourseScores] = useState<CourseScores[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
+  const [loadingEval, setLoadingEval] = useState<string | null>(null);
 
   const computeCourseScores = useCallback(async (course: Course): Promise<CriteriumAvg[]> => {
     if (myCriteria.length === 0) return [];
@@ -60,18 +60,41 @@ export function ReportsScreen() {
   const loadCategories = useCallback(async (courseId: string) => {
     try {
       const cats = await getCategoriesByCourse(courseId);
-      const withData = await Promise.all(
+      const items = (await Promise.all(
         cats.map(async (cat) => {
-          const [ev, groups] = await Promise.all([
-            getEvaluationByCategory(cat._id),
+          const [evs, groups] = await Promise.all([
+            getEvaluationsByCategory(cat._id),
             getGroupsByCategory(cat._id),
           ]);
-          return { categoryId: cat._id, categoryName: cat.name, evaluationId: ev?._id ?? null, groupCount: groups.length };
+          // compute completion at category level
+          const groupData = await Promise.all(
+            groups.map(async (g) => {
+              const [members, results] = await Promise.all([
+                getMembersByGroup(g._id),
+                getResultsByGroup(g._id),
+              ]);
+              return { members, results };
+            }),
+          );
+          const total = groupData.reduce((s, { members }) => s + members.length, 0);
+          const completed = Math.min(
+            new Set(groupData.flatMap(({ results }) => results.map((r) => r.evaluator_id))).size,
+            total,
+          );
+          return evs.map((ev) => ({
+            evaluationId: ev._id,
+            evaluationTitle: ev.title,
+            categoryId: cat._id,
+            categoryName: cat.name,
+            groupCount: groups.length,
+            completed,
+            total,
+          }));
         }),
-      );
-      setCategories(withData);
+      )).flat();
+      setEvalItems(items);
     } catch {
-      setCategories([]);
+      setEvalItems([]);
     }
   }, []);
 
@@ -102,12 +125,8 @@ export function ReportsScreen() {
     loadCategories(course._id);
   };
 
-  const exportCsv = async (item: CategoryWithEval) => {
-    if (!item.evaluationId) {
-      Alert.alert("Sin evaluación", "Esta categoría no tiene evaluación configurada.");
-      return;
-    }
-    setLoadingCategory(item.categoryId);
+  const exportCsv = async (item: EvalReportItem) => {
+    setLoadingEval(item.evaluationId);
     try {
       const [criteria, groups] = await Promise.all([
         getCriteriaForEvaluation(item.evaluationId),
@@ -148,7 +167,7 @@ export function ReportsScreen() {
       const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
       const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
 
-      const safeName = item.categoryName.replace(/[^a-zA-Z0-9]/g, "_");
+      const safeName = item.evaluationTitle.replace(/[^a-zA-Z0-9]/g, "_");
       const fileName = `${safeName}_reporte.csv`;
 
       if (Platform.OS === "web") {
@@ -166,7 +185,7 @@ export function ReportsScreen() {
         await FS.writeAsStringAsync(fileUri, csv, { encoding: FS.EncodingType.UTF8 });
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle: `Reporte: ${item.categoryName}`, UTI: "public.comma-separated-values-text" });
+          await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle: `Reporte: ${item.evaluationTitle}`, UTI: "public.comma-separated-values-text" });
         } else {
           Alert.alert("Exportado", `Archivo guardado en:\n${fileUri}`);
         }
@@ -174,7 +193,7 @@ export function ReportsScreen() {
     } catch (e: any) {
       Alert.alert("Error al exportar", e?.message ?? String(e));
     } finally {
-      setLoadingCategory(null);
+      setLoadingEval(null);
     }
   };
 
@@ -192,8 +211,8 @@ export function ReportsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <View className="w-full max-w-lg mx-auto flex-1">
         <FlatList
-          data={categories}
-          keyExtractor={(item) => item.categoryId}
+          data={evalItems}
+          keyExtractor={(item) => item.evaluationId}
           contentContainerStyle={{ paddingBottom: 100 }}
           ListHeaderComponent={
             <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
@@ -234,38 +253,66 @@ export function ReportsScreen() {
           }
           ListEmptyComponent={
             <View style={{ padding: 40, alignItems: "center" }}>
-              <Text style={{ color: "#9CA3AF" }}>Sin categorías en este curso</Text>
+              <Text style={{ color: "#9CA3AF" }}>Sin evaluaciones en este curso</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <View style={{ paddingHorizontal: 20 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "700", fontSize: 16, color: "#111827" }}>{item.categoryName}</Text>
-                  <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
-                    {item.groupCount} {item.groupCount === 1 ? "Grupo" : "Grupos"}
-                  </Text>
-                </View>
-                <Button
-                  variant="secondary"
-                  onPress={() => exportCsv(item)}
-                  disabled={loadingCategory === item.categoryId || !item.evaluationId}
-                  className="rounded-full w-[38px] h-[38px] p-0 items-center justify-center"
-                  style={{ borderWidth: 1.5, borderColor: item.evaluationId ? PRIMARY : "#E5E7EB" }}
-                >
-                  {loadingCategory === item.categoryId ? (
-                    <ActivityIndicator size="small" color={PRIMARY} />
+          renderItem={({ item }) => {
+            const isComplete = item.total > 0 && item.completed >= item.total;
+            return (
+              <View style={{ paddingHorizontal: 20 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 18, gap: 14 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: "700", fontSize: 16, color: "#111827" }}>{item.evaluationTitle}</Text>
+                    <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
+                      {item.categoryName} · {item.groupCount} {item.groupCount === 1 ? "Grupo" : "Grupos"}
+                    </Text>
+                  </View>
+                  {isComplete ? (
+                    <Button
+                      variant="secondary"
+                      onPress={() => exportCsv(item)}
+                      disabled={loadingEval === item.evaluationId}
+                      className="rounded-full w-[38px] h-[38px] p-0 items-center justify-center"
+                      style={{ borderWidth: 1.5, borderColor: PRIMARY }}
+                    >
+                      {loadingEval === item.evaluationId
+                        ? <ActivityIndicator size="small" color={PRIMARY} />
+                        : <Download size={18} color={PRIMARY} />}
+                    </Button>
                   ) : (
-                    <Download size={18} color={item.evaluationId ? PRIMARY : "#D1D5DB"} />
+                    <CircleProgress completed={item.completed} total={item.total} />
                   )}
-                </Button>
+                </View>
+                <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
               </View>
-              <View style={{ height: 1, backgroundColor: "#F3F4F6" }} />
-            </View>
-          )}
+            );
+          }}
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+// ── Circle Progress ───────────────────────────────────────────────────────────
+
+function CircleProgress({ completed, total, size = 48 }: { completed: number; total: number; size?: number }) {
+  const sw = 4;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = total > 0 ? completed / total : 0;
+  const c = size / 2;
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} style={{ position: "absolute" }}>
+        <Circle cx={c} cy={c} r={r} stroke="#F3F4F6" strokeWidth={sw} fill="none" />
+        <Circle cx={c} cy={c} r={r} stroke="#818CF8" strokeWidth={sw} fill="none"
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+          strokeLinecap="round" transform={`rotate(-90 ${c} ${c})`} />
+      </Svg>
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ fontSize: 9, fontWeight: "700", color: "#111827", lineHeight: 11 }}>{completed}/{total}</Text>
+      </View>
+    </View>
   );
 }
 
