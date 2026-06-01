@@ -2,19 +2,17 @@ import { faker } from "@faker-js/faker";
 import { http, HttpResponse } from "msw";
 import {
   categories,
+  courses,
   criteria,
   evaluationCriteria,
   evaluations,
   groups,
   products,
   resultCriteria,
-  ResultCriteriumRow,
   resultEvaluations,
-  ResultEvaluationRow,
   userCourses,
   userGroups,
   users,
-  courses,
 } from "../db";
 
 const PROJECT_ID = process.env.EXPO_PUBLIC_ROBLE_PROJECT_ID;
@@ -79,35 +77,24 @@ export const databaseHandlers = [
     }
 
     const table = TABLES[tableName];
+    const inserted: any[] = [];
 
     for (const record of records) {
-      const newId = faker.string.uuid();
+      const newId = record._id ?? faker.string.alphanumeric(12);
+      let row: any;
 
       if (tableName === "resultEvaluation") {
-        const row: ResultEvaluationRow = {
-          _id: newId,
-          resultEvaluation_id: newId,
-          evaluation_id: record.evaluation_id,
-          evaluator_id: record.evaluator_id,
-          evaluated_id: record.evaluated_id,
-        };
-        (table as ResultEvaluationRow[]).push(row);
+        row = { _id: newId, resultEvaluation_id: newId, evaluation_id: record.evaluation_id, evaluator_id: record.evaluator_id, evaluated_id: record.evaluated_id };
       } else if (tableName === "result_criterium") {
-        const row: ResultCriteriumRow = {
-          _id: newId,
-          result_id: record.result_id,
-          criterium_id: record.criterium_id,
-          score: record.score,
-        };
-        (table as ResultCriteriumRow[]).push(row);
-      } else if (tableName === "Product") {
-        table.push({ _id: newId, ...record });
+        row = { _id: newId, result_id: record.result_id, criterium_id: record.criterium_id, score: record.score };
       } else {
-        table.push({ _id: newId, ...record });
+        row = { _id: newId, ...record };
       }
+      table.push(row);
+      inserted.push(row);
     }
 
-    return new HttpResponse(null, { status: 201 });
+    return HttpResponse.json({ inserted, skipped: [] }, { status: 201 });
   }),
 
   // ─── PUT /database/:projectId/update ─────────────────────────────────────

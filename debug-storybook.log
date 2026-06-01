@@ -1,0 +1,32 @@
+[23:36:00.114] [INFO] storybook v10.4.1
+[23:36:01.241] [DEBUG] Getting package.json info for C:/Users/Administrador/Documents/mobil/unimejores/package.json...
+[23:36:01.245] [WARN] You are currently using Storybook [1m10.4.1[22m but you have packages which are incompatible with it:
+
+- @storybook/addon-essentials@8.6.14 which depends on 8.6.14
+ Repo: https://github.com/storybookjs/storybook/tree/next/code/addons/essentials
+- @storybook/addon-interactions@8.6.14 which depends on 8.6.14
+ Repo: https://github.com/storybookjs/storybook/tree/next/code/addons/interactions
+- @storybook/test@8.6.15 which depends on 8.6.15
+ Repo: https://github.com/storybookjs/storybook/tree/next/code/lib/test
+
+Please consider updating your packages or contacting the maintainers for compatibility details.
+
+For more details on compatibility guidance, see:
+https://github.com/storybookjs/storybook/issues/32836
+[23:36:02.210] [INFO] Starting...
+[23:36:03.044] [DEBUG] Starting preview..
+[23:36:03.138] [DEBUG] Using tsconfig paths for react-docgen
+[23:36:03.139] [ERROR] Failed to build the preview
+[23:36:03.145] [ERROR] [38;2;241;97;97mReferenceError: __dirname is not defined[39m
+    at Object.viteFinal (file:///C:/Users/Administrador/Documents/mobil/unimejores/.storybook/main.ts:14:25)
+    at file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/_node-chunks/chunk-PNYLLFX3.js:9190:36
+    at async createViteServer (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/@storybook+builder-vite@10._4d0bc8da20486be074a2acabc5b29fba/node_modules/@storybook/builder-vite/dist/index.js:1575:21)
+    at async Module.start (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/@storybook+builder-vite@10._4d0bc8da20486be074a2acabc5b29fba/node_modules/@storybook/builder-vite/dist/index.js:1606:17)
+    at async storybookDevServer (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/core-server/index.js:18917:158)
+    at async buildOrThrow (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/core-server/index.js:8205:12)
+    at async buildDevStandalone (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/core-server/index.js:19478:41)
+    at async withTelemetry (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/_node-chunks/chunk-CUZMMOHY.js:655:12)
+    at async dev (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/bin/core.js:2736:3)
+    at async _Command.<anonymous> (file:///C:/Users/Administrador/Documents/mobil/unimejores/node_modules/.pnpm/storybook@10.4.1_@testing-l_0a6783819897aa99b3b9a413c1ffbd44/node_modules/storybook/dist/bin/core.js:2806:92)
+[23:36:03.149] [WARN] Broken build, fix the error above.
+You may need to refresh the browser.
